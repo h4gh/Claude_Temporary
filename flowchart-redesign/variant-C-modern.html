@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Variant C – Modern Swimlane</title>
+<style>
+  :root{--hdr:#0B1F33;--ink:#15202B;--muted:#5A6878;--line:#DCE2E8;--bg:#F3F5F8;
+        --yes:#0E7C86;--yes-bg:#ECF6F7;--no:#C26A00;--no-bg:#FCF4E8;--ok:#C81E1E;--ok-bg:#FDF1F1;--nc:#475569}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;font-family:Inter,Arial,sans-serif;color:var(--ink)}
+  #canvas{position:relative;width:1600px;height:1131px;background:var(--bg);overflow:hidden}
+  .hdr{position:absolute;left:0;top:0;right:0;height:150px;background:var(--hdr);color:#fff;padding:36px 48px;display:flex;justify-content:space-between;align-items:center}
+  .hdr h1{font-family:"Inter Display",Inter,sans-serif;font-size:40px;font-weight:700;letter-spacing:-.015em}
+  .hdr p{font-size:16px;color:#A9B8C8;margin-top:8px}
+  .chips{display:flex;gap:10px}
+  .chip{border:1px solid #3A5370;border-radius:999px;padding:9px 18px;font-size:14px;font-weight:600;letter-spacing:.04em}
+  .chip small{color:#A9B8C8;font-weight:500;margin-right:8px;letter-spacing:.12em;font-size:11px;text-transform:uppercase}
+  .colhead{position:absolute;top:172px;font-size:11.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .card{position:absolute;background:#fff;border-radius:10px;box-shadow:0 1px 2px rgba(16,24,40,.06),0 2px 8px rgba(16,24,40,.06);border:1px solid var(--line)}
+  .pre{left:48px;width:280px;height:96px;padding:18px 20px 0 22px;border-left:5px solid var(--hdr)}
+  .pre h3{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--hdr)}
+  .pre p{font-size:16px;color:var(--muted);margin-top:6px}
+  .diamond{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;font-size:16px;font-weight:700;color:var(--hdr);line-height:1.3}
+  .diamond svg{position:absolute;inset:0;filter:drop-shadow(0 2px 4px rgba(16,24,40,.12))}
+  .diamond span{position:relative}
+  .lane{position:absolute;left:400px;width:790px;border-radius:12px;padding:0 24px}
+  .lane.yes{background:var(--yes-bg);border:1px solid #BFE0E3}
+  .lane.no{background:var(--no-bg);border:1px solid #F0D9B5}
+  .lane-h{display:flex;align-items:center;gap:12px;height:56px;font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .badge{color:#fff;font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;letter-spacing:.1em}
+  .yes .lane-h{color:var(--yes)} .yes .badge{background:var(--yes)}
+  .no .lane-h{color:var(--no)} .no .badge{background:var(--no)}
+  .steps{display:flex;gap:30px;margin-top:6px}
+  .step{position:relative;flex:1;background:#fff;border-radius:10px;border:1px solid var(--line);box-shadow:0 1px 3px rgba(16,24,40,.06);padding:16px 16px;height:196px}
+  .yes .step{height:120px;display:flex;align-items:center;gap:14px}
+  .n{display:inline-flex;width:30px;height:30px;border-radius:50%;color:#fff;font-weight:700;font-size:14px;align-items:center;justify-content:center;flex:none}
+  .yes .n{background:var(--yes)} .no .n{background:var(--no)}
+  .step p{font-size:15px;line-height:1.42;margin-top:10px}
+  .yes .step p{margin-top:0}
+  .obs{margin-top:26px;height:62px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;gap:12px;font-size:16px;font-weight:600}
+  .yes .obs{border:2px solid var(--yes)} .no .obs{border:2px solid var(--no)}
+  .obs svg{flex:none}
+  .result{left:1240px;width:312px;height:220px;background:var(--hdr);color:#fff;border:0;padding:26px 26px;display:flex;flex-direction:column;justify-content:center}
+  .result small{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:#A9B8C8;font-weight:700}
+  .result p{font-size:19px;line-height:1.38;margin-top:10px;font-weight:600}
+  .out{left:1240px;width:312px;height:190px;padding:22px 24px;display:flex;flex-direction:column;justify-content:center}
+  .out .badge{align-self:flex-start;margin-bottom:12px}
+  .out h4{font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .out p{font-size:16px;margin-top:6px;line-height:1.4}
+  .out.c{background:var(--ok-bg);border:1.5px solid #F2B8B8} .out.c .badge{background:var(--ok)} .out.c h4{color:var(--ok)}
+  .out.x{border:1.5px solid #CBD5E1} .out.x .badge{background:var(--nc)}
+  .record{position:absolute;left:48px;right:48px;top:965px;height:84px;background:#fff;border-radius:10px;border:1px solid var(--line);display:flex;align-items:center;padding:0 28px;gap:30px}
+  .record b{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--hdr);margin-right:6px}
+  .record span{display:flex;align-items:center;gap:10px;font-size:16px}
+  .record span i{width:26px;height:26px;border-radius:6px;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:12px;font-weight:700;color:var(--hdr)}
+  .wire-label{font-size:11px;font-weight:700;letter-spacing:.1em;color:#fff;padding:3px 8px;border-radius:999px}
+  .wl-y{background:var(--yes)} .wl-n{background:var(--no)} .wl-ok{background:var(--ok)} .wl-x{background:var(--nc)}
+</style>
+</head>
+<body>
+<div id="canvas">
+  <div class="hdr">
+    <div><h1>BSA LWR Case Welding Area Investigation</h1><p>Dealer diagnostic and evidence-recording procedure</p></div>
+    <div class="chips"><span class="chip"><small>Vehicle</small>OSe EV</span><span class="chip"><small>System</small>HV Battery (BSA)</span></div>
+  </div>
+
+  <div class="colhead" style="left:48px">Initial diagnosis</div>
+  <div class="colhead" style="left:400px">Leak localization</div>
+  <div class="colhead" style="left:1240px">Result</div>
+
+  <div class="card pre" id="a1" style="top:205px"><h3>Customer complaint</h3><p>Relevant symptoms</p></div>
+  <div class="card pre" id="a2" style="top:335px"><h3>Read &amp; record</h3><p>BMS DTCs + conditions</p></div>
+  <div class="card pre" id="a3" style="top:465px"><h3>Suspected</h3><p>BSA water ingress</p></div>
+  <div class="diamond" id="d1" style="left:48px;top:600px;width:280px;height:150px">
+    <svg viewBox="0 0 280 150" preserveAspectRatio="none" width="280" height="150"><polygon points="140,2 278,75 140,148 2,75" fill="#fff" stroke="#0B1F33" stroke-width="2.5"/></svg>
+    <span>BSA leak tester<br>available?</span>
+  </div>
+
+  <div class="lane yes" id="LY" style="top:205px;height:298px">
+    <div class="lane-h"><span class="badge">YES</span>Dedicated BSA leak tester path</div>
+    <div class="steps">
+      <div class="step" id="y1"><span class="n">1</span><p>Apply soapy water to the LWR weld area</p></div>
+      <div class="step" id="y2"><span class="n">2</span><p>Perform BSA leak test with dedicated service tool</p></div>
+    </div>
+    <div class="obs" id="yo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0E7C86" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16 16l5 5"/></svg>Observe the LWR welding area: do air bubbles form?</div>
+  </div>
+
+  <div class="lane no" id="LN" style="top:535px;height:380px">
+    <div class="lane-h"><span class="badge">NO</span>Alternative open-BSA / air-gun path</div>
+    <div class="steps">
+      <div class="step" id="s1"><span class="n">1</span><p>Open BSA</p></div>
+      <div class="step" id="s2"><span class="n">2</span><p>Inspect for moisture, corrosion, mold, contamination or staining</p></div>
+      <div class="step" id="s3"><span class="n">3</span><p>Apply soapy water to the LWR weld area</p></div>
+      <div class="step" id="s4"><span class="n">4</span><p>Apply compressed air around the BSA perimeter and observe weld</p></div>
+    </div>
+    <div class="obs" id="no"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C26A00" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16 16l5 5"/></svg>Do air bubbles form at the LWR welding area?</div>
+  </div>
+
+  <div class="card out c" id="oc" style="top:205px"><span class="badge">YES</span><h4>Leakage area confirmed</h4><p>Proceed with standard warranty repair</p></div>
+  <div class="card result" id="res" style="top:450px"><small>Common result</small><p>Was leakage localized at the LWR welding area by bubble formation?</p></div>
+  <div class="card out x" id="ox" style="top:725px"><span class="badge">NO</span><h4>Leakage area not confirmed</h4><p>Continue diagnosis per standard warranty procedure</p></div>
+
+  <div class="record"><b>Record for both outcomes</b>
+    <span><i>✓</i>DTCs</span><span><i>✓</i>Complaint conditions</span><span><i>✓</i>Method used</span><span><i>✓</i>Exact location</span><span><i>✓</i>Photos / video</span>
+  </div>
+</div>
+<script src="connectors.js"></script>
+<script>
+  const h = '#0B1F33', Y = '#0E7C86', N = '#C26A00';
+  link('#a1','#a2',{from:'bottom',to:'top',color:h});
+  link('#a2','#a3',{from:'bottom',to:'top',color:h});
+  link('#a3','#d1',{from:'bottom',to:'top',color:h});
+  link('#d1','#LY',{from:'right',to:'left',color:Y,midX:364,label:'YES',labelClass:'wl-y',labelAt:'end',dx:-16,dy:-16});
+  link('#d1','#LN',{from:'right',to:'left',color:N,midX:364,toF:.27,label:'NO',labelClass:'wl-n',labelAt:'end',dx:-16,dy:-16});
+  link('#y1','#y2',{color:Y,gap:2});
+  ['1','2','3'].forEach(i=>link('#s'+i,'#s'+(+i+1),{color:N,gap:2,arrow:8}));
+  link('#yo','#res',{from:'right',to:'left',color:h,midX:1214,toF:.35});
+  link('#no','#res',{from:'right',to:'left',color:h,midX:1214,toF:.65});
+  link('#res','#oc',{from:'top',to:'bottom',color:'#C81E1E',label:'YES',labelClass:'wl-ok',dy:-30,dx:30});
+  link('#res','#ox',{from:'bottom',to:'top',color:'#475569',label:'NO',labelClass:'wl-x',dy:30,dx:28});
+</script>
+</body>
+</html>

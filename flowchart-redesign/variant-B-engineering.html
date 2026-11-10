@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Variant B – Engineering Flowchart</title>
+<style>
+  :root{--ink:#1A1D21;--muted:#5F6670;--line:#2B2F36;--soft:#D5D9DE;--lane:#F5F6F8;--accent:#1F4E8C}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;font-family:Inter,Arial,sans-serif;color:var(--ink)}
+  #canvas{position:relative;width:1131px;height:1600px;background:#fff;padding:48px 56px}
+  /* drawing-style title block */
+  .tb{display:grid;grid-template-columns:1fr 250px;border:2px solid var(--line)}
+  .tb-main{padding:18px 22px;border-right:1px solid var(--line)}
+  .tb-main h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
+  .tb-main p{font-size:15px;color:var(--muted);margin-top:6px}
+  .tb-side div{padding:9px 16px;border-bottom:1px solid var(--line);font-size:15px;font-weight:600}
+  .tb-side div:last-child{border-bottom:0}
+  .tb-side small{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:2px}
+  .legend{display:flex;gap:26px;justify-content:flex-end;font-size:11.5px;color:var(--muted);margin:10px 0 0;letter-spacing:.02em}
+  .legend span{display:flex;align-items:center;gap:7px}
+  .legend svg{flex:none}
+
+  .shape{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 18px;font-size:15px;line-height:1.35}
+  .shape > svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .shape > div{position:relative}
+  .shape b{display:block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:2px}
+  .proc > svg rect{fill:#fff;stroke:var(--line);stroke-width:1.5}
+  .term > svg rect{fill:#fff;stroke:var(--line);stroke-width:1.5}
+  .dec > svg polygon{fill:#fff;stroke:var(--accent);stroke-width:2}
+  .dec{font-weight:600;color:var(--accent)}
+  .hex > svg polygon{fill:#fff;stroke:var(--line);stroke-width:1.5;stroke-dasharray:5 3}
+  .hex{font-weight:600}
+  .num{position:absolute;left:-13px;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:var(--line);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:2}
+
+  .lane{position:absolute;background:var(--lane);border:1px solid var(--soft)}
+  .lane-h{position:absolute;left:0;right:0;top:0;height:42px;border-bottom:1px solid var(--soft);display:flex;align-items:center;gap:10px;padding:0 16px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .pill{font-size:11px;padding:3px 9px;border:1.5px solid var(--line);letter-spacing:.1em}
+  .wire-label{font-size:11px;font-weight:700;letter-spacing:.1em;background:#fff;padding:1px 6px;color:var(--accent)}
+  .doc > svg path{fill:#fff;stroke:var(--line);stroke-width:1.5}
+  .doc{justify-content:flex-start;text-align:left;padding:0 26px 14px}
+  .doc ul{list-style:none;display:flex;flex-wrap:wrap;gap:6px 26px;font-size:14.5px;margin-top:6px}
+  .doc li::before{content:"□ ";color:var(--muted)}
+  .doc b{font-size:12px;letter-spacing:.12em}
+  .out-c b{color:#9B1C1C}
+</style>
+</head>
+<body>
+<div id="canvas">
+  <div class="tb">
+    <div class="tb-main"><h1>BSA LWR Case Welding Area Investigation</h1><p>Dealer diagnostic and evidence-recording procedure</p></div>
+    <div class="tb-side"><div><small>Vehicle</small>OSe EV</div><div><small>System</small>HV Battery (BSA)</div></div>
+  </div>
+  <div class="legend">
+    <span><svg width="26" height="14"><rect x="1" y="1" width="24" height="12" rx="6" fill="#fff" stroke="#2B2F36" stroke-width="1.5"/></svg>Start / end</span>
+    <span><svg width="26" height="14"><rect x="1" y="1" width="24" height="12" fill="#fff" stroke="#2B2F36" stroke-width="1.5"/></svg>Action</span>
+    <span><svg width="26" height="16"><polygon points="13,1 25,8 13,15 1,8" fill="#fff" stroke="#1F4E8C" stroke-width="1.5"/></svg>Decision</span>
+    <span><svg width="26" height="14"><polygon points="5,1 21,1 25,7 21,13 5,13 1,7" fill="#fff" stroke="#2B2F36" stroke-width="1.5" stroke-dasharray="3 2"/></svg>Observation</span>
+    <span><svg width="26" height="16"><path d="M1,1 H25 V12 Q19,9 13,12 T1,12 Z" fill="#fff" stroke="#2B2F36" stroke-width="1.5"/></svg>Record</span>
+  </div>
+
+  <!-- initial diagnosis -->
+  <div class="shape term" id="a1" style="left:56px;top:250px;width:300px;height:70px"><svg preserveAspectRatio="none"><rect x="0" y="0" width="100%" height="100%" rx="35"/></svg><div><b>Customer complaint</b>Relevant symptoms</div></div>
+  <div class="shape proc" id="a2" style="left:415px;top:250px;width:300px;height:70px"><svg><rect x="0" y="0" width="100%" height="100%"/></svg><div><b>Read &amp; record</b>BMS DTCs + conditions</div></div>
+  <div class="shape proc" id="a3" style="left:775px;top:250px;width:300px;height:70px"><svg><rect x="0" y="0" width="100%" height="100%"/></svg><div><b>Suspected</b>BSA water ingress</div></div>
+  <div class="shape dec" id="d1" style="left:415px;top:372px;width:300px;height:110px"><svg viewBox="0 0 300 110" preserveAspectRatio="none"><polygon points="150,1 299,55 150,109 1,55"/></svg><div>BSA leak tester<br>available?</div></div>
+
+  <!-- lanes -->
+  <div class="lane" id="L1" style="left:56px;top:520px;width:490px;height:560px"><div class="lane-h"><span class="pill">Yes</span>Dedicated BSA leak tester path</div></div>
+  <div class="lane" id="L2" style="left:585px;top:520px;width:490px;height:560px"><div class="lane-h"><span class="pill">No</span>Alternative open-BSA / air-gun path</div></div>
+
+  <div class="shape proc" id="y1" style="left:111px;top:640px;width:380px;height:64px"><svg><rect x="0" y="0" width="100%" height="100%"/></svg><span class="num">1</span><div>Apply soapy water to the LWR weld area</div></div>
+  <div class="shape proc" id="y2" style="left:111px;top:808px;width:380px;height:64px"><svg><rect x="0" y="0" width="100%" height="100%"/></svg><span class="num">2</span><div>Perform BSA leak test with dedicated service tool</div></div>
+  <div class="shape hex" id="yc" style="left:86px;top:976px;width:430px;height:76px"><svg viewBox="0 0 430 76" preserveAspectRatio="none"><polygon points="24,1 406,1 429,38 406,75 24,75 1,38"/></svg><div>Observe the LWR welding area:<br>do air bubbles form?</div></div>
+
+  <div class="shape proc" id="n1" style="left:640px;top:592px;width:380px;height:64px"><svg><rect x="0" y="0" width="100%" height="100%"/></svg><span class="num">1</span><div>Open BSA</div></div>
+  <div class="shape proc" id="n2" style="left:640px;top:688px;width:380px;height:64px"><svg><rect x="0" y="0" width="100%" height="100%"/></svg><span class="num">2</span><div>Inspect for moisture, corrosion, mold,<br>contamination or staining</div></div>
+  <div class="shape proc" id="n3" style="left:640px;top:784px;width:380px;height:64px"><svg><rect x="0" y="0" width="100%" height="100%"/></svg><span class="num">3</span><div>Apply soapy water to the LWR weld area</div></div>
+  <div class="shape proc" id="n4" style="left:640px;top:880px;width:380px;height:64px"><svg><rect x="0" y="0" width="100%" height="100%"/></svg><span class="num">4</span><div>Apply compressed air around the BSA<br>perimeter and observe weld</div></div>
+  <div class="shape hex" id="nc" style="left:615px;top:976px;width:430px;height:76px"><svg viewBox="0 0 430 76" preserveAspectRatio="none"><polygon points="24,1 406,1 429,38 406,75 24,75 1,38"/></svg><div>Do air bubbles form at the<br>LWR welding area?</div></div>
+
+  <!-- common result -->
+  <div class="shape dec" id="d2" style="left:285px;top:1124px;width:560px;height:130px"><svg viewBox="0 0 560 130" preserveAspectRatio="none"><polygon points="280,1 559,65 280,129 1,65"/></svg><div style="padding:0 80px"><b>Common result</b>Was leakage localized at the LWR welding area by bubble formation?</div></div>
+
+  <div class="shape term out-c" id="o1" style="left:56px;top:1290px;width:470px;height:76px"><svg preserveAspectRatio="none"><rect x="0" y="0" width="100%" height="100%" rx="38" style="stroke-width:2.5"/></svg><div><b>Leakage area confirmed</b>Proceed with standard warranty repair</div></div>
+  <div class="shape term" id="o2" style="left:605px;top:1290px;width:470px;height:76px"><svg preserveAspectRatio="none"><rect x="0" y="0" width="100%" height="100%" rx="38"/></svg><div><b>Leakage area not confirmed</b>Continue diagnosis per standard warranty procedure</div></div>
+
+  <div class="shape doc" id="rec" style="left:56px;top:1410px;width:1019px;height:110px"><svg viewBox="0 0 1019 110" preserveAspectRatio="none"><path d="M1,1 H1018 V92 Q764,70 509,92 T1,92 Z"/></svg><div><b>Record for both outcomes</b><ul><li>DTCs</li><li>Complaint conditions</li><li>Method used</li><li>Exact location</li><li>Photos / video</li></ul></div></div>
+</div>
+<script src="connectors.js"></script>
+<script>
+  const k = '#2B2F36', a = '#1F4E8C';
+  link('#a1','#a2',{color:k}); link('#a2','#a3',{color:k});
+  link('#a3','#d1',{from:'bottom',to:'top',color:k,midY:342});
+  link('#d1','#L1',{from:'left',to:'top',color:a,label:'YES',dx:-30,dy:-12});
+  link('#d1','#L2',{from:'right',to:'top',color:a,label:'NO',dx:30,dy:-12});
+  link('#y1','#y2',{from:'bottom',to:'top',color:k});
+  link('#y2','#yc',{from:'bottom',to:'top',color:k,alignX:true});
+  ['1','2','3'].forEach(i=>link('#n'+i,'#n'+(+i+1),{from:'bottom',to:'top',color:k}));
+  link('#n4','#nc',{from:'bottom',to:'top',color:k,alignX:true});
+  link('#yc','#d2',{from:'bottom',to:'top',color:k,midY:1096});
+  link('#nc','#d2',{from:'bottom',to:'top',color:k,midY:1096});
+  link('#d2','#o1',{from:'bottom',to:'top',color:a,straight:false,label:'YES',labelAt:'end',dx:28,dy:-14});
+  link('#d2','#o2',{from:'bottom',to:'top',color:a,label:'NO',labelAt:'end',dx:-26,dy:-14});
+  link('#o1','#rec',{from:'bottom',to:'top',color:k,dash:'4 3',straight:true});
+  link('#o2','#rec',{from:'bottom',to:'top',color:k,dash:'4 3',straight:true});
+</script>
+</body>
+</html>

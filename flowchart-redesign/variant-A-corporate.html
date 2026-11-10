@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Variant A – Corporate Bulletin</title>
+<style>
+  :root{
+    --navy:#0E2841; --ink:#1B2733; --muted:#5B6878; --line:#C9D1DA; --bg:#F4F6F9;
+    --yes:#1E6B52; --yes-bg:#EEF5F2; --no:#A86A12; --no-bg:#FBF5EC;
+    --ok:#B42318; --ok-bg:#FDF3F2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;font-family:Inter,Arial,sans-serif;color:var(--ink)}
+  #canvas{position:relative;width:1600px;height:1131px;background:#fff;padding:0 56px 40px;}
+  .topbar{height:8px;background:var(--navy);margin:0 -56px}
+  header{display:flex;justify-content:space-between;align-items:flex-end;padding:30px 0 22px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:13px;letter-spacing:.16em;font-weight:600;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+  h1{font-family:"Inter Display",Inter,sans-serif;font-size:38px;font-weight:700;color:var(--navy);letter-spacing:-.01em}
+  .meta{display:grid;grid-template-columns:auto auto;border:1px solid var(--line);font-size:14px}
+  .meta div{padding:8px 16px;border-bottom:1px solid var(--line)}
+  .meta div:nth-last-child(-n+2){border-bottom:0}
+  .meta .k{background:var(--bg);color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:12px;border-right:1px solid var(--line)}
+  .meta .v{font-weight:600;color:var(--navy)}
+
+  .phase{display:grid;grid-template-columns:150px 1fr;gap:24px;padding-top:46px}
+  .phase-label{border-top:3px solid var(--navy);padding-top:10px}
+  .phase-label b{display:block;font-size:30px;font-weight:300;color:var(--navy);line-height:1}
+  .phase-label span{display:block;margin-top:6px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);line-height:1.4}
+
+  .row1{display:flex;align-items:center;justify-content:space-between;height:96px}
+  .node{border:1px solid var(--line);border-left:4px solid var(--navy);background:#fff;padding:14px 18px;width:250px;height:76px;display:flex;flex-direction:column;justify-content:center}
+  .node h3{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--navy)}
+  .node p{font-size:15px;color:var(--muted);margin-top:4px}
+  .diamond{position:relative;width:270px;height:96px;display:flex;align-items:center;justify-content:center;text-align:center}
+  .diamond svg{position:absolute;inset:0}
+  .diamond span{position:relative;font-size:15px;font-weight:700;color:var(--navy);line-height:1.3}
+
+  .paths{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+  .no .steps{display:grid;grid-template-columns:1fr 1fr;gap:26px 40px}
+  .no .step{height:84px}
+  .yes .steps{flex-direction:column;gap:26px;padding-right:180px}
+  .yes .step{height:84px;flex:none}
+  .panel{border:1px solid var(--line);background:#fff}
+  .panel-h{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+  .tag{font-size:12px;font-weight:700;color:#fff;padding:4px 10px;letter-spacing:.08em}
+  .panel-h h4{font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .yes .tag{background:var(--yes)} .yes .panel-h h4{color:var(--yes)} .yes .panel-h{background:var(--yes-bg)}
+  .no .tag{background:var(--no)} .no .panel-h h4{color:var(--no)} .no .panel-h{background:var(--no-bg)}
+  .steps{display:flex;gap:30px;padding:22px 18px 0}
+  .step{flex:1;border:1px solid var(--line);background:#fff;padding:14px 16px;height:112px;display:flex;gap:12px;align-items:center}
+  .num{flex:none;width:28px;height:28px;border-radius:50%;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;color:#fff}
+  .yes .num{background:var(--yes)} .no .num{background:var(--no)}
+  .step p{font-size:15px;line-height:1.4}
+  .check{margin:26px 18px 20px;border:1.5px dashed var(--muted);padding:13px 18px;font-size:15px;font-weight:600;text-align:center;background:var(--bg)}
+  .check small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:3px}
+
+  .result{background:var(--navy);color:#fff;padding:16px 24px;font-size:16px;display:flex;gap:14px;align-items:center}
+  .result b{font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.75}
+  .outcomes{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:30px}
+  .out{border:1px solid var(--line);padding:16px 20px;display:flex;gap:16px;align-items:center;height:88px}
+  .out .tag{font-size:12px}
+  .out h5{font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .out p{font-size:15px;margin-top:3px}
+  .out.c{border-left:5px solid var(--ok);background:var(--ok-bg)} .out.c .tag{background:var(--ok)} .out.c h5{color:var(--ok)}
+  .out.n{border-left:5px solid var(--muted);background:var(--bg)} .out.n .tag{background:var(--muted)} .out.n h5{color:var(--ink)}
+  .record{margin-top:26px;display:flex;align-items:center;gap:22px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;font-size:14.5px}
+  .record b{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--navy)}
+  .record span{display:flex;align-items:center;gap:8px}
+  .record span::before{content:"";width:13px;height:13px;border:1.5px solid var(--navy)}
+  .wire-label{font-size:11px;font-weight:700;letter-spacing:.08em;padding:2px 7px;color:#fff}
+  .wl-yes{background:var(--yes)} .wl-no{background:var(--no)} .wl-ok{background:var(--ok)} .wl-n{background:var(--muted)}
+</style>
+</head>
+<body>
+<div id="canvas">
+  <div class="topbar"></div>
+  <header>
+    <div>
+      <div class="eyebrow">Dealer diagnostic and evidence-recording procedure</div>
+      <h1>BSA LWR Case Welding Area Investigation</h1>
+    </div>
+    <div class="meta">
+      <div class="k">Vehicle</div><div class="v">OSe EV</div>
+      <div class="k">System</div><div class="v">HV Battery (BSA)</div>
+    </div>
+  </header>
+
+  <section class="phase">
+    <div class="phase-label"><b>01</b><span>Initial<br>diagnosis</span></div>
+    <div class="row1">
+      <div class="node" id="n1"><h3>Customer complaint</h3><p>Relevant symptoms</p></div>
+      <div class="node" id="n2"><h3>Read &amp; record</h3><p>BMS DTCs + conditions</p></div>
+      <div class="node" id="n3"><h3>Suspected</h3><p>BSA water ingress</p></div>
+      <div class="diamond" id="d1">
+        <svg viewBox="0 0 270 96" preserveAspectRatio="none"><polygon points="135,1 269,48 135,95 1,48" fill="#fff" stroke="#0E2841" stroke-width="2"/></svg>
+        <span>BSA leak tester<br>available?</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="phase">
+    <div class="phase-label"><b>02</b><span>Leak<br>localization</span></div>
+    <div class="paths">
+      <div class="panel yes" id="py">
+        <div class="panel-h"><span class="tag">YES</span><h4>Dedicated BSA leak tester path</h4></div>
+        <div class="steps">
+          <div class="step" id="y1"><span class="num">1</span><p>Apply soapy water to the LWR weld area</p></div>
+          <div class="step" id="y2"><span class="num">2</span><p>Perform BSA leak test with dedicated service tool</p></div>
+        </div>
+        <div class="check" id="yc"><small>Observe</small>Observe the LWR welding area: do air bubbles form?</div>
+      </div>
+      <div class="panel no" id="pn">
+        <div class="panel-h"><span class="tag">NO</span><h4>Alternative open-BSA / air-gun path</h4></div>
+        <div class="steps">
+          <div class="step" id="s1"><span class="num">1</span><p>Open BSA</p></div>
+          <div class="step" id="s2"><span class="num">2</span><p>Inspect for moisture, corrosion, mold, contamination or staining</p></div>
+          <div class="step" id="s3"><span class="num">3</span><p>Apply soapy water to the LWR weld area</p></div>
+          <div class="step" id="s4"><span class="num">4</span><p>Apply compressed air around the BSA perimeter and observe weld</p></div>
+        </div>
+        <div class="check" id="nc"><small>Observe</small>Do air bubbles form at the LWR welding area?</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="phase">
+    <div class="phase-label"><b>03</b><span>Result &amp;<br>documentation</span></div>
+    <div>
+      <div class="result" id="res"><b>Common result</b>Was leakage localized at the LWR welding area by bubble formation?</div>
+      <div class="outcomes">
+        <div class="out c" id="oc"><span class="tag">YES</span><div><h5>Leakage area confirmed</h5><p>Proceed with standard warranty repair</p></div></div>
+        <div class="out n" id="on"><span class="tag">NO</span><div><h5>Leakage area not confirmed</h5><p>Continue diagnosis per standard warranty procedure</p></div></div>
+      </div>
+      <div class="record"><b>Record for both outcomes</b>
+        <span>DTCs</span><span>Complaint conditions</span><span>Method used</span><span>Exact location</span><span>Photos / video</span>
+      </div>
+    </div>
+  </section>
+</div>
+<script src="connectors.js"></script>
+<script>
+  const c = '#0E2841';
+  link('#n1','#n2',{color:c}); link('#n2','#n3',{color:c}); link('#n3','#d1',{color:c});
+  link('#d1','#py',{from:'bottom',to:'top',color:'#1E6B52',label:'YES',labelClass:'wl-yes',labelAt:'end',dy:-22,dx:24});
+  link('#d1','#pn',{from:'bottom',to:'top',color:'#A86A12',toF:.72,label:'NO',labelClass:'wl-no',labelAt:'end',dy:-22,dx:22});
+  link('#y1','#y2',{from:'bottom',to:'top',color:'#1E6B52',alignX:true});
+  link('#y2','#yc',{from:'bottom',to:'top',color:'#1E6B52',alignX:true});
+  link('#s1','#s2',{color:'#A86A12'});
+  link('#s2','#s3',{from:'bottom',to:'top',color:'#A86A12'});
+  link('#s3','#s4',{color:'#A86A12'});
+  link('#s4','#nc',{from:'bottom',to:'top',color:'#A86A12',alignX:true});
+  link('#py','#res',{from:'bottom',to:'top',color:c,straight:true});
+  link('#pn','#res',{from:'bottom',to:'top',color:c,straight:true});
+  link('#res','#oc',{from:'bottom',to:'top',color:'#B42318',alignX:true});
+  link('#res','#on',{from:'bottom',to:'top',color:'#5B6878',alignX:true});
+</script>
+</body>
+</html>
