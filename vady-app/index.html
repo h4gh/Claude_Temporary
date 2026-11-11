@@ -310,7 +310,9 @@ function groundShadow(){
 
 let MAT;
 function makeMats(){ return {
-  paint: new THREE.MeshStandardMaterial({color:0x5f7d99, metalness:0.35, roughness:0.42}),
+  paint: new THREE.MeshStandardMaterial({color:0x7b8a80, metalness:0.3, roughness:0.45}),
+  gloss: new THREE.MeshStandardMaterial({color:0x14181c, metalness:0.4, roughness:0.25, side:THREE.DoubleSide}),
+  crease: new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.28}),
   glass: new THREE.MeshStandardMaterial({color:0x1b2530, metalness:0.6, roughness:0.15, side:THREE.DoubleSide}),
   plastic: new THREE.MeshStandardMaterial({color:0x2b3036, roughness:0.75}),
   tire: new THREE.MeshStandardMaterial({color:0x1e2125, roughness:0.9}),
@@ -330,21 +332,24 @@ function makeMats(){ return {
   blue: new THREE.MeshStandardMaterial({color:0x2f6fd0, roughness:0.5}),
   yellow: new THREE.MeshStandardMaterial({color:0xe0b020, roughness:0.5}),
   red: new THREE.MeshStandardMaterial({color:0xc0262d, roughness:0.5}),
-  ghost: new THREE.MeshBasicMaterial({color:0x5f7d99, transparent:true, opacity:0.07, depthWrite:false}),
-  ghostLine: new THREE.LineBasicMaterial({color:0x5f7d99, transparent:true, opacity:0.35})
+  ghost: new THREE.MeshBasicMaterial({color:0x7b8a80, transparent:true, opacity:0.07, depthWrite:false}),
+  ghostLine: new THREE.LineBasicMaterial({color:0x6c7a70, transparent:true, opacity:0.35})
 }; }
 
+/* Tvar inspirovaný novým Tucsonem: hranatá karoserie, plochá střecha, kolmá záď, hranaté podběhy s černým lemem. */
+const FRONT_AXLE=1.42, REAR_AXLE=-1.38;
+function archPts(cx, grow){ const g=grow||0;
+  return [[cx-0.48-g,0.40],[cx-0.44-g,0.70+g*0.6],[cx-0.30-g*0.6,0.80+g],[cx+0.30+g*0.6,0.80+g],[cx+0.44+g,0.70+g*0.6],[cx+0.48+g,0.40]]; }
 function buildBodyGeometry(){
   const s=new THREE.Shape();
-  s.moveTo(-2.30,0.45); s.lineTo(-1.85,0.40);
-  s.absarc(-1.40,0.38,0.45,Math.PI,0,true);
-  s.lineTo(1.00,0.40);
-  s.absarc(1.45,0.38,0.45,Math.PI,0,true);
-  s.lineTo(2.32,0.42); s.lineTo(2.42,0.62); s.lineTo(2.40,0.92); s.lineTo(2.25,1.00);
-  s.lineTo(1.10,1.08); s.lineTo(0.55,1.62); s.lineTo(-1.80,1.66); s.lineTo(-2.22,1.46);
-  s.lineTo(-2.33,0.95); s.lineTo(-2.30,0.45);
+  s.moveTo(-2.36,0.42);
+  for(const [x,y] of archPts(REAR_AXLE)) s.lineTo(x,y);
+  for(const [x,y] of archPts(FRONT_AXLE)) s.lineTo(x,y);
+  s.lineTo(2.30,0.40); s.lineTo(2.40,0.55); s.lineTo(2.42,0.98); s.lineTo(2.36,1.06);
+  s.lineTo(1.15,1.12); s.lineTo(0.62,1.62); s.lineTo(-1.95,1.66); s.lineTo(-2.30,1.55);
+  s.lineTo(-2.37,1.00); s.lineTo(-2.36,0.42);
   const bt=0.06, depth=2*HALF_W-2*bt;
-  const g=new THREE.ExtrudeGeometry(s,{depth, bevelEnabled:true, bevelThickness:bt, bevelSize:0.05, bevelSegments:4, curveSegments:28});
+  const g=new THREE.ExtrudeGeometry(s,{depth, bevelEnabled:true, bevelThickness:bt, bevelSize:0.05, bevelSegments:3, curveSegments:12});
   g.translate(0,0,-depth/2);
   const pos=g.attributes.position;
   for(let i=0;i<pos.count;i++) pos.setZ(i, pos.getZ(i)*taper(pos.getY(i)));
@@ -360,10 +365,13 @@ function mesh(geo, mat, name, parent, pos, extra){
 }
 function box(w,h,d){ return new THREE.BoxGeometry(w,h,d); }
 
-function sidePoly(pts, side, mat, name, parent){
+function sidePoly(pts, side, mat, name, parent, off, holes){
+  off = off ?? 0.006; holes = holes || [];
   const v2 = pts.map(p=>new THREE.Vector2(p[0],p[1]));
-  const tris = THREE.ShapeUtils.triangulateShape(v2, []);
-  const arr=[]; pts.forEach(p=>arr.push(p[0], p[1], side*(HALF_W*taper(p[1])+0.006)));
+  const h2 = holes.map(h=>h.map(p=>new THREE.Vector2(p[0],p[1])));
+  const tris = THREE.ShapeUtils.triangulateShape(v2, h2);
+  const all = pts.concat(...holes);
+  const arr=[]; all.forEach(p=>arr.push(p[0], p[1], side*(HALF_W*taper(p[1])+off)));
   const g=new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(arr,3));
   g.setIndex(tris.flat()); g.computeVertexNormals();
   return mesh(g, mat, name, parent);
@@ -379,68 +387,97 @@ function slopeGlass(a, b, outward, inset, mat, name, parent){
   return mesh(g, mat, name, parent);
 }
 
+function pixelTexture(cols, rows, on, off){
+  const c=document.createElement("canvas"); c.width=cols*8; c.height=rows*8; const g=c.getContext("2d");
+  g.fillStyle=off; g.fillRect(0,0,c.width,c.height); g.fillStyle=on;
+  for(let i=0;i<cols;i++) for(let j=0;j<rows;j++) g.fillRect(i*8+1,j*8+1,6,6);
+  const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; return t;
+}
+function textTexture(txt){
+  const c=document.createElement("canvas"); c.width=512; c.height=64; const g=c.getContext("2d");
+  g.clearRect(0,0,512,64); g.fillStyle="#d9dde1"; g.font="600 40px 'IBM Plex Sans', Arial, sans-serif"; g.textAlign="center"; g.textBaseline="middle";
+  g.letterSpacing="22px"; g.fillText(txt,256,34);
+  const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; return t;
+}
+function line(G, pts, mat){ G.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(...p))), mat||MAT.seam)); }
+
 function buildExterior(bodyGeo){
   const G=new THREE.Group(); const P=pickables.ext;
   const body=mesh(bodyGeo, MAT.paint, null, G, null, {kind:"body"}); P.push(body);
+  const pixelMat=new THREE.MeshStandardMaterial({map:pixelTexture(6,8,"#f4f8ff","#20262d"), emissive:0x8899aa, emissiveIntensity:0.15, roughness:0.3});
+  const grilleMat=new THREE.MeshStandardMaterial({map:pixelTexture(40,7,"#3a4148","#15191d"), roughness:0.6});
+  const tailMat=new THREE.MeshStandardMaterial({map:pixelTexture(3,12,"#e0303a","#4a0c10"), emissive:0x5a0b0f, emissiveIntensity:0.5, roughness:0.3});
   for(const side of [-1,1]){
     const S = side<0 ? "L" : "P";
-    P.push(sidePoly([[0.96,1.13],[0.05,1.13],[0.05,1.56],[0.52,1.56]], side, MAT.glass, `Okno předních dveří (${S})`, G));
-    P.push(sidePoly([[-0.05,1.13],[-1.05,1.13],[-1.05,1.57],[-0.05,1.57]], side, MAT.glass, `Okno zadních dveří (${S})`, G));
-    P.push(sidePoly([[-1.15,1.13],[-2.02,1.17],[-1.80,1.57],[-1.15,1.57]], side, MAT.glass, `Zadní boční okno (${S})`, G));
-    // kola
-    for(const [x,label] of [[1.45,"přední"],[-1.40,"zadní"]]){
+    // černý pás skel (černé sloupky = „plovoucí“ střecha)
+    sidePoly([[1.10,1.15],[-2.27,1.20],[-2.27,1.56],[-1.95,1.635],[0.64,1.60]], side, MAT.gloss, null, G, 0.004);
+    P.push(sidePoly([[1.00,1.18],[0.05,1.18],[0.05,1.57],[0.58,1.57]], side, MAT.glass, `Okno předních dveří (${S})`, G, 0.008));
+    P.push(sidePoly([[-0.05,1.18],[-1.10,1.20],[-1.10,1.58],[-0.05,1.58]], side, MAT.glass, `Okno zadních dveří (${S})`, G, 0.008));
+    P.push(sidePoly([[-1.20,1.21],[-2.14,1.23],[-2.10,1.56],[-1.20,1.58]], side, MAT.glass, `Zadní boční okno (${S})`, G, 0.008));
+    // hranaté lemy podběhů
+    for(const [cx,label] of [[FRONT_AXLE,"přední"],[REAR_AXLE,"zadní"]]){
+      P.push(sidePoly(archPts(cx,0.10), side, MAT.plastic, `Lem podběhu ${label} (${S})`, G, 0.012, [archPts(cx,-0.05).reverse()]));
       const name=`Kolo ${label} (${S})`;
-      const tire=mesh(new THREE.CylinderGeometry(0.35,0.35,0.24,36).rotateX(Math.PI/2), MAT.tire, name, G, [x,0.35,side*0.80]); P.push(tire);
-      P.push(mesh(new THREE.CylinderGeometry(0.22,0.22,0.02,28).rotateX(Math.PI/2), MAT.rim, name, G, [x,0.35,side*0.925]));
+      P.push(mesh(new THREE.CylinderGeometry(0.36,0.36,0.25,36).rotateX(Math.PI/2), MAT.tire, name, G, [cx,0.36,side*0.80]));
+      P.push(mesh(new THREE.CylinderGeometry(0.25,0.25,0.02,28).rotateX(Math.PI/2), MAT.rim, name, G, [cx,0.36,side*0.928]));
+      P.push(mesh(new THREE.CylinderGeometry(0.07,0.07,0.02,5).rotateX(Math.PI/2), MAT.gloss, name, G, [cx,0.36,side*0.940]));
     }
-    // světla, zrcátka, kliky, ližiny, prahy
-    P.push(mesh(box(0.06,0.09,0.42), MAT.head, `Přední světlomet (${S})`, G, [2.43,0.86,side*0.58]));
-    P.push(mesh(box(0.06,0.12,0.30), MAT.tail, `Zadní světlo (${S})`, G, [-2.36,1.06,side*0.70]));
-    P.push(mesh(box(0.20,0.12,0.14), MAT.plastic, `Vnější zpětné zrcátko (${S})`, G, [0.96,1.18,side*1.02]));
-    P.push(mesh(box(0.16,0.035,0.025), MAT.plastic, `Klika předních dveří (${S})`, G, [0.30,1.00,side*0.942]));
-    P.push(mesh(box(0.16,0.035,0.025), MAT.plastic, `Klika zadních dveří (${S})`, G, [-0.80,1.00,side*0.942]));
-    P.push(mesh(box(2.0,0.04,0.05), MAT.plastic, `Střešní ližina (${S})`, G, [-0.62,1.74,side*0.64]));
-    P.push(mesh(box(1.90,0.09,0.03), MAT.plastic, `Práh (${S})`, G, [0.02,0.45,side*0.935]));
-    // spáry dveří
+    // světla a doplňky
+    P.push(mesh(box(0.04,0.30,0.16), pixelMat, `Přední světlomet (${S})`, G, [2.465,0.80,side*0.74]));
+    P.push(mesh(box(0.04,0.40,0.10), tailMat, `Zadní svítilna (${S})`, G, [-2.415,1.16,side*0.80]));
+    P.push(mesh(box(0.20,0.12,0.14), MAT.gloss, `Vnější zpětné zrcátko (${S})`, G, [1.00,1.24,side*1.02]));
+    P.push(mesh(box(0.18,0.03,0.02), MAT.gloss, `Klika předních dveří (${S})`, G, [0.30,1.07,side*0.942]));
+    P.push(mesh(box(0.18,0.03,0.02), MAT.gloss, `Klika zadních dveří (${S})`, G, [-0.82,1.08,side*0.942]));
+    P.push(mesh(box(2.1,0.04,0.05), MAT.plastic, `Střešní ližina (${S})`, G, [-0.70,1.74,side*0.64]));
+    P.push(mesh(box(1.84,0.14,0.03), MAT.plastic, `Práh (${S})`, G, [0.02,0.47,side*0.937]));
+    // spáry, prolisy
     const z=side*(HALF_W+0.004);
-    for(const [x,y0] of [[1.05,0.60],[0.0,0.42],[-1.10,0.72]]){
-      G.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,y0,z),new THREE.Vector3(x,1.07,z)]), MAT.seam));
-    }
+    for(const [x,y0] of [[0.98,0.74],[0.0,0.42],[-1.12,0.79]]) line(G,[[x,y0,z],[x,1.15,z]]);
+    line(G,[[1.13,1.02,z],[2.42,1.00,z]]);                 // spára kapoty typu „clamshell“ na boku
+    line(G,[[2.10,0.98,z],[-2.30,0.92,z]], MAT.crease);   // ostrý prolis přes dveře
+    line(G,[[0.90,0.66,z],[-0.86,0.70,z]], MAT.crease);
   }
-  P.push(slopeGlass([1.10,1.08],[0.55,1.62],[0.54,0.55],0.12, MAT.glass, "Čelní sklo", G));
-  P.push(slopeGlass([-1.80,1.66],[-2.22,1.46],[-0.20,0.42],0.14, MAT.glass, "Zadní sklo", G));
-  P.push(mesh(box(0.04,0.24,0.95), MAT.plastic, "Maska chladiče", G, [2.455,0.74,0]));
-  P.push(mesh(box(0.08,0.12,1.60), MAT.plastic, "Přední nárazník – spodní část", G, [2.42,0.48,0]));
-  P.push(mesh(box(0.08,0.14,1.60), MAT.plastic, "Zadní nárazník – spodní část", G, [-2.33,0.52,0]));
-  // spára kapoty a pátých dveří
-  const hood=[]; for(let i=0;i<=10;i++){ const z=-0.86+i*0.172; hood.push(new THREE.Vector3(1.09,1.135,z)); }
-  G.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(hood), MAT.seam));
+  // čelo
+  P.push(slopeGlass([1.15,1.12],[0.62,1.62],[0.50,0.53],0.14, MAT.glass, "Čelní sklo", G));
+  P.push(slopeGlass([-1.95,1.66],[-2.30,1.55],[-0.11,0.35],0.16, MAT.glass, "Zadní sklo", G));
+  P.push(mesh(box(0.03,0.025,1.62), MAT.head, "Přední světelný pás", G, [2.47,1.00,0]));
+  P.push(mesh(box(0.03,0.28,1.20), grilleMat, "Maska chladiče", G, [2.468,0.76,0]));
+  P.push(mesh(box(0.06,0.13,1.40), MAT.plastic, "Přední nárazník – spodní mřížka", G, [2.43,0.50,0]));
+  P.push(mesh(box(0.05,0.05,0.90), MAT.rim, "Přední nárazník – ochranný kryt", G, [2.42,0.42,0]));
+  // záď
+  P.push(mesh(box(0.03,0.025,1.52), MAT.tail, "Zadní světelný pás", G, [-2.415,1.30,0]));
+  const badge=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.11), new THREE.MeshBasicMaterial({map:textTexture("TUCSON"), transparent:true}));
+  badge.rotation.y=-Math.PI/2; badge.position.set(-2.43,1.20,0); G.add(badge);
+  P.push(mesh(box(0.08,0.22,1.74), MAT.plastic, "Zadní nárazník – spodní část", G, [-2.39,0.53,0]));
+  // kontrastní střecha
+  P.push(mesh(box(2.50,0.012,1.50), MAT.gloss, "Střecha", G, [-0.66,1.716,0]));
   return G;
 }
 
 function classifyBody(p,n){
   const side = p.z<0 ? " (L)" : " (P)"; const x=p.x, y=p.y;
   if(n.y>0.6 && y>1.5) return "Střecha";
-  if(y>1.09){
+  if(y>1.15){
     if(n.x>0.45) return "Rám čelního skla";
     if(n.x<-0.45) return "Páté dveře – horní část";
     if(x>0.6) return "A-sloupek"+side;
     if(x>0.05) return "Rám okna předních dveří"+side;
     if(x>-0.05) return "B-sloupek"+side;
-    if(x>-1.1) return "Rám okna zadních dveří"+side;
-    return "C-sloupek"+side;
+    if(x>-1.15) return "Rám okna zadních dveří"+side;
+    return "D-sloupek"+side;
   }
-  if(n.x>0.5) return y<0.72 ? "Přední nárazník" : "Přední maska / kapota – hrana";
+  if(n.x>0.5) return y<0.68 ? "Přední nárazník" : "Přední maska / čelo";
   if(n.x<-0.5) return y<0.78 ? "Zadní nárazník" : "Páté dveře (víko kufru)";
-  if(n.y>0.55) return x>1.07 ? "Kapota" : (x<-2.1 ? "Páté dveře (víko kufru)" : "Linie pod okny"+side);
+  if(n.y>0.55) return x>1.13 ? "Kapota" : (x<-2.2 ? "Páté dveře (víko kufru)" : "Linie pod okny"+side);
   if(n.y<-0.3 && y>0.45) return (x>0 ? "Podběh přední" : "Podběh zadní")+side;
   if(n.y<-0.6) return "Spodek karoserie";
-  if(x>2.2) return "Přední nárazník – roh"+side;
-  if(x>1.05) return "Přední blatník"+side;
-  if(y<0.52 && x>-0.95 && x<1.0) return "Práh"+side;
+  if(x>2.25) return "Přední nárazník – roh"+side;
+  if(x>1.13 && y>1.0) return "Kapota – boční hrana"+side;
+  if(x>0.98) return "Přední blatník"+side;
+  if(y<0.54 && x>-0.9 && x<0.94) return "Práh"+side;
   if(x>0.0) return "Přední dveře"+side;
-  if(x>-1.1) return "Zadní dveře"+side;
-  if(x>-2.2) return "Zadní blatník"+side;
+  if(x>-1.12) return "Zadní dveře"+side;
+  if(x>-2.25) return "Zadní blatník"+side;
   return "Zadní nárazník – roh"+side;
 }
 
@@ -453,12 +490,11 @@ function buildInterior(bodyGeo){
   const G=new THREE.Group(); const P=pickables.int; ghost(bodyGeo,G);
   P.push(mesh(box(3.3,0.04,1.70), MAT.carpet, "Podlaha / koberec", G, [-0.45,0.43,0]));
   P.push(mesh(box(0.40,0.30,1.70), MAT.trim, "Palubní deska", G, [0.95,0.98,0]));
-  P.push(mesh(box(0.10,0.14,0.36), MAT.cover, "Přístrojový štít", G, [0.78,1.15,-0.40]));
-  const scr=mesh(box(0.03,0.20,0.34), MAT.screen, "Displej infotainmentu", G, [0.76,1.20,0.02]); scr.rotation.z=0.18; P.push(scr);
-  const wheel=mesh(new THREE.TorusGeometry(0.18,0.025,10,36).rotateY(Math.PI/2), MAT.cover, "Volant", G, [0.55,1.04,-0.40]); wheel.rotation.z=0.38; P.push(wheel);
+  const scr=mesh(box(0.03,0.15,0.95), MAT.screen, "Panoramatický displej (přístroje + infotainment)", G, [0.79,1.20,-0.16]); scr.rotation.z=0.12; P.push(scr);
+  const wheel=mesh(new THREE.TorusGeometry(0.18,0.028,8,4).rotateZ(Math.PI/4).rotateY(Math.PI/2), MAT.cover, "Volant", G, [0.55,1.04,-0.40]); wheel.rotation.z=0.38; P.push(wheel);
+  P.push(mesh(box(0.10,0.02,0.02), MAT.metal, "Volič převodovky (pod volantem)", G, [0.62,1.00,-0.22]));
   const hub=mesh(new THREE.CylinderGeometry(0.06,0.06,0.05,20).rotateZ(Math.PI/2), MAT.cover, "Volant", G, [0.56,1.04,-0.40]); hub.rotation.z=0.38+Math.PI/2; P.push(hub);
-  P.push(mesh(box(1.0,0.28,0.24), MAT.trim, "Středová konzole", G, [0.33,0.59,0]));
-  P.push(mesh(box(0.06,0.08,0.05), MAT.cover, "Volič převodovky", G, [0.55,0.77,0]));
+  P.push(mesh(box(1.0,0.36,0.26), MAT.trim, "Středová konzole", G, [0.33,0.63,0]));
   function seat(name,x,z,w,y){
     const c=mesh(box(0.50,0.12,w), MAT.seat, name+" – sedák", G, [x,y,z]); P.push(c);
     const b=mesh(box(0.12,0.62,w), MAT.seat2, name+" – opěradlo", G, [x-0.29,y+0.33,z]); b.rotation.z=0.14; P.push(b);
