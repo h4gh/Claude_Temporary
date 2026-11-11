@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}</style></head><body>
+<title>Záznam vad vozu</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one-screen inspection app. Header + area tabs, full-bleed 3D stage, bottom action bar, bottom sheets for forms. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --surface-2:#e4e9ef; --fg:#16202b; --muted:#5a6676; --line:#cfd6df;
+  --accent:#1d5fd0; --accent-fg:#ffffff; --stage:#dfe5ec; --scrim:rgba(14,20,28,.45);
+  --sevA:#c62828; --sevB:#c77700; --sevC:#3d6fa8; --ok:#2e7d4f;
+  --font:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --gutter-l:max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r:max(16px, env(safe-area-inset-right, 0px));
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f141a; --surface:#18202a; --surface-2:#232d39; --fg:#e6ecf2; --muted:#9aa7b6; --line:#2f3b49;
+  --accent:#6a9ef2; --accent-fg:#0b1220; --stage:#131a22; --scrim:rgba(0,0,0,.6);
+  --sevA:#ef5a56; --sevB:#f0a02a; --sevC:#77a5dd; --ok:#5cbf86; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0f141a; --surface:#18202a; --surface-2:#232d39; --fg:#e6ecf2; --muted:#9aa7b6; --line:#2f3b49;
+  --accent:#6a9ef2; --accent-fg:#0b1220; --stage:#131a22; --scrim:rgba(0,0,0,.6);
+  --sevA:#ef5a56; --sevB:#f0a02a; --sevC:#77a5dd; --ok:#5cbf86; color-scheme:dark }
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{height:100%;display:flex;flex-direction:column}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);padding-left:var(--gutter-l);padding-right:var(--gutter-r);padding-block:10px 0;display:flex;flex-direction:column;gap:8px}
+.toprow{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.brand{display:flex;flex-direction:column;min-width:0}
+.brand b{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.brand span{font-size:12px;color:var(--muted)}
+.vehicle{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:6px 10px;min-width:0;max-width:60%}
+.vehicle .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.vehicle .val{font-family:var(--mono);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-inline:-4px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;border:0;background:none;padding:10px 10px 11px;font-weight:600;font-size:14px;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.tab .cnt{display:inline-block;min-width:18px;margin-left:5px;padding:0 5px;border-radius:9px;background:var(--surface-2);font-size:11px;font-family:var(--mono);color:var(--muted)}
+.tab .short{display:none}
+@media (max-width:440px){.tab .long{display:none}.tab .short{display:inline}.tab{flex:1 1 auto;padding-inline:2px;font-size:13.5px}.tab .cnt{margin-left:3px;min-width:14px;padding:0 4px}.tabs{gap:0}}
+
+main{flex:1;position:relative;min-height:0}
+.stage{position:absolute;inset:0;background:var(--stage);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;overflow:hidden}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none}
+.hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.08);pointer-events:none;max-width:calc(100% - 32px);overflow:hidden;text-overflow:ellipsis}
+.hint kbd{font-family:var(--font);font-weight:700}
+.press{position:absolute;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;border:3px solid var(--accent);pointer-events:none;opacity:0;transform:scale(.3)}
+.press.on{animation:press 550ms linear forwards}
+@keyframes press{from{opacity:.25;transform:scale(.3)}to{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.press.on{animation:none;opacity:1;transform:none}}
+
+.dyn{position:absolute;inset:0;overflow-y:auto;padding-left:var(--gutter-l);padding-right:var(--gutter-r);padding-block:14px 24px;background:var(--bg)}
+.dyn h2{font-size:15px;margin:0 0 4px}
+.dyn p.sub{margin:0 0 12px;color:var(--muted);font-size:13px}
+.checks{display:flex;flex-direction:column;gap:8px;max-width:720px}
+.check{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center}
+.check .name{font-weight:600;min-width:0}
+.check .state{font-size:12px;color:var(--muted)}
+.check .state.ok{color:var(--ok)}
+.check .state.bad{color:var(--sevA)}
+.check .btns{display:flex;gap:6px;grid-row:span 2}
+.check ul{grid-column:1/-1;margin:2px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+.check li{font-size:13px;display:flex;gap:8px;align-items:center}
+
+.bar{background:var(--surface);border-top:1px solid var(--line);padding-left:var(--gutter-l);padding-right:var(--gutter-r);padding-block:10px;display:flex;gap:8px;align-items:center}
+.bar .view{flex:1;min-width:0;position:relative}
+.bar select{width:100%;appearance:none;-webkit-appearance:none;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 30px 10px 10px;font-size:14px}
+.bar .view::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.btn{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:10px 14px;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.ghost{background:none}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn.danger{color:var(--sevA)}
+.btn.danger.armed{background:var(--sevA);border-color:var(--sevA);color:#fff}
+.btn .badge{font-family:var(--mono);background:var(--accent);color:var(--accent-fg);border-radius:9px;padding:0 6px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:default}
+
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--surface);border-radius:16px 16px 0 0;max-height:90%;overflow-y:auto;padding-left:var(--gutter-l);padding-right:var(--gutter-r);padding-top:8px;padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px));box-shadow:0 -6px 24px rgba(0,0,0,.18)}
+@media (min-width:760px){.sheet{left:50%;right:auto;width:640px;transform:translateX(-50%)}}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 10px}
+.sheet h3{margin:0;font-size:18px}
+.loc{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 14px;font-size:13px;color:var(--muted)}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;background:var(--surface-2);color:var(--fg)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field>label,.field>.lbl{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.field input[type=text],.field textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px;font-size:15px;width:100%;box-sizing:border-box}
+.field textarea{min-height:64px;resize:vertical}
+.types{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0}
+.chip b{font-size:14px;font-weight:600}
+.chip small{font-size:11.5px;color:var(--muted);line-height:1.3}
+.chip[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--surface)}
+.sev{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.sev .chip{border-left-width:5px}
+.sev .chip[data-s="A"]{border-left-color:var(--sevA)}
+.sev .chip[data-s="B"]{border-left-color:var(--sevB)}
+.sev .chip[data-s="C"]{border-left-color:var(--sevC)}
+.photo{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.photo img{width:88px;height:66px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.actions .grow{flex:1}
+.err{color:var(--sevA);font-size:13px;min-height:1em}
+
+.list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.item{display:grid;grid-template-columns:40px 1fr auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg);text-align:left;width:100%}
+.num{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--mono);font-weight:600;font-size:13px}
+.num.A{background:var(--sevA)}.num.B{background:var(--sevB)}.num.C{background:var(--sevC)}
+.item .t{font-weight:600;min-width:0}
+.item .s{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .meta{font-size:11px;color:var(--muted);font-family:var(--mono);text-align:right}
+.tag{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;border:1px dashed var(--muted);color:var(--muted);border-radius:4px;padding:0 4px;margin-left:6px;font-weight:600}
+.empty{color:var(--muted);font-size:14px;padding:18px 0;text-align:center}
+.detail dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:12px 0;font-size:14px}
+.detail dt{color:var(--muted)}
+.detail dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.detail img{max-width:100%;border-radius:8px;border:1px solid var(--line)}
+.sumrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;z-index:40;max-width:calc(100% - 32px);text-align:center}
+.busy{position:fixed;inset:0;z-index:50;background:var(--scrim);display:grid;place-items:center;color:#fff;font-weight:600}
+.loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="toprow">
+      <div class="brand"><b>Záznam vad</b><span>Kontrola vozu · SUV</span></div>
+      <button class="vehicle" id="vehBtn" type="button" aria-label="Údaje o voze a operátorovi">
+        <span class="lbl">VIN</span><span class="val" id="vinVal">nevyplněno</span>
+      </button>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Oblast kontroly">
+      <button class="tab" role="tab" data-area="ext" aria-selected="true">Exteriér<span class="cnt" data-cnt="ext">0</span></button>
+      <button class="tab" role="tab" data-area="int" aria-selected="false">Interiér<span class="cnt" data-cnt="int">0</span></button>
+      <button class="tab" role="tab" data-area="eng" aria-selected="false"><span class="long">Motorový prostor</span><span class="short">Motor</span><span class="cnt" data-cnt="eng">0</span></button>
+      <button class="tab" role="tab" data-area="dyn" aria-selected="false">Dynamika<span class="cnt" data-cnt="dyn">0</span></button>
+    </nav>
+  </header>
+
+  <main>
+    <div class="stage" id="stage">
+      <div class="loading" id="loading">Načítám 3D model…</div>
+      <div class="hint" id="hint">Otáčejte tažením · <kbd>podržte prst</kbd> na místě vady</div>
+      <div class="press" id="press"></div>
+    </div>
+    <section class="dyn" id="dyn" hidden>
+      <h2>Dynamická jízda</h2>
+      <p class="sub">Každou kontrolu označte jako OK, nebo k ní zapište vadu.</p>
+      <div class="checks" id="checks"></div>
+    </section>
+  </main>
+
+  <footer class="bar">
+    <div class="view" id="viewWrap"><select id="viewSel" aria-label="Pohled na model"></select></div>
+    <button class="btn" id="listBtn" type="button">Vady <span class="badge" id="totalCnt">0</span></button>
+    <button class="btn primary" id="exportBtn" type="button">Excel</button>
+  </footer>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" hidden></div>
+<div class="busy" id="busy" hidden>Připravuji Excel…</div>
+<input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ---------- Číselníky ---------- */
+const TYPES = [
+  {id:"scratch",  label:"Škrábanec",               hint:"rýha v laku nebo plastu"},
+  {id:"dent",     label:"Promáčklina / důlek",     hint:"deformace plechu"},
+  {id:"paint",    label:"Vada laku",               hint:"stékanec, kráter, nečistota v laku"},
+  {id:"gap",      label:"Spára / přesah",          hint:"nestejná mezera, nesedí díly"},
+  {id:"missing",  label:"Chybějící / uvolněný díl",hint:"klip, krytka, šroub"},
+  {id:"damaged",  label:"Prasklý / poškozený díl", hint:"plast, sklo, čalounění"},
+  {id:"dirt",     label:"Znečištění",              hint:"skvrna, otisk, lepidlo"},
+  {id:"noise",    label:"Hluk / vrzání",           hint:"drnčení, pískání, klepání"},
+  {id:"function", label:"Nefunkční prvek",         hint:"elektrika, ovládání, kontrolka"},
+  {id:"leak",     label:"Netěsnost / únik",        hint:"olej, chladivo, voda"}
+];
+const TYPE = Object.fromEntries(TYPES.map(t=>[t.id,t]));
+const SEV = {
+  A:{label:"A – kritická", hint:"bezpečnost nebo funkce"},
+  B:{label:"B – hlavní",   hint:"viditelná, nutná oprava"},
+  C:{label:"C – vedlejší", hint:"drobná, kosmetická"}
+};
+const AREAS = {ext:"Exteriér", int:"Interiér", eng:"Motorový prostor", dyn:"Dynamika"};
+const DYN_CHECKS = [
+  "Start motoru a volnoběh","Akcelerace a řazení","Brzdy – účinnost a hluk","Řízení – vůle a tah do strany",
+  "Podvozek – rázy a klepání","Hluk větru a vrzání interiéru","Vibrace volantu, sedadel a podlahy",
+  "Asistenční systémy (ADAS)","Klimatizace a topení","Kontrolky na přístrojovém štítu"
+];
+const SEV_HEX = {A:"#c62828", B:"#d17d00", C:"#3d6fa8"};
+
+/* ---------- Stav (uložen v prohlížeči) ---------- */
+const KEY = "zaznam-vad-v1";
+function seed(){
+  return {vin:"", operator:"", seq:2, checks:{}, defects:[
+    {id:"ex1", n:1, area:"ext", part:"Přední dveře (L)", type:"scratch", sev:"B", note:"Škrábanec cca 3 cm u zadní hrany dveří",
+     point:[0.12,0.86,-0.935], normal:[0,0,-1], cam:{p:[0.9,1.25,-3.4], t:[0.4,0.8,-0.9]}, time:new Date().toISOString(), example:true, photo:null},
+    {id:"ex2", n:2, area:"int", part:"Zadní sedadlo pravé – sedák", type:"dirt", sev:"C", note:"Skvrna na potahu",
+     point:[-0.92,0.70,0.52], normal:[0,1,0], cam:{p:[0.4,2.7,1.3], t:[-0.9,0.65,0.3]}, time:new Date().toISOString(), example:true, photo:null}
+  ]};
+}
+let state;
+try{ const raw = localStorage.getItem(KEY); state = raw ? JSON.parse(raw) : seed(); }catch(e){ state = seed(); }
+state.checks = state.checks || {}; state.defects = state.defects || [];
+function persist(){
+  try{ localStorage.setItem(KEY, JSON.stringify(state)); }
+  catch(e){ toast("Úložiště v prohlížeči je plné. Vyexportujte Excel a smažte staré vady."); }
+}
+
+/* ---------- Pomocné UI ---------- */
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let toastT;
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
+function fmtTime(iso){ const d=new Date(iso); const p=n=>String(n).padStart(2,"0"); return `${p(d.getDate())}.${p(d.getMonth()+1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+let sheetClose = null;
+function openSheet(html, onClose){
+  const sh=$("#sheet"); sh.innerHTML='<div class="grab"></div>'+html; sh.hidden=false; $("#scrim").hidden=false; sh.scrollTop=0;
+  sheetClose = onClose||null;
+  return sh;
+}
+function closeSheet(){
+  $("#sheet").hidden=true; $("#scrim").hidden=true; $("#sheet").innerHTML="";
+  const f=sheetClose; sheetClose=null; if(f) f();
+}
+$("#scrim").addEventListener("click", closeSheet);
+document.addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("#sheet").hidden) closeSheet(); });
+function armButton(btn, label, action){ // dvoukrokové potvrzení (dialogy confirm() nejsou k dispozici)
+  btn.addEventListener("click", ()=>{
+    if(btn.classList.contains("armed")){ action(); return; }
+    const orig=btn.textContent; btn.classList.add("armed"); btn.textContent=label;
+    setTimeout(()=>{ if(btn.isConnected){ btn.classList.remove("armed"); btn.textContent=orig; } },3000);
+  });
+}
+
+/* ---------- 3D scéna ---------- */
+const stage = $("#stage");
+let renderer, scene, camera, controls, raycaster = null;
+const groups = {}, pickables = {ext:[],int:[],eng:[]}, markerGroups = {};
+const markerSprites = new Map();
+let currentArea = "ext", started = false;
+const HALF_W = 0.93;
+const taper = y => y<=1.05 ? 1 : 1 - 0.13*Math.min(1,(y-1.05)/0.6);
+
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#dfe5ec"; }
+
+function initThree(){
+  if(!window.THREE || !THREE.OrbitControls){ $("#loading").textContent="3D knihovnu se nepodařilo načíst. Zkontrolujte připojení a obnovte stránku."; return false; }
+  if(THREE.ColorManagement) THREE.ColorManagement.legacyMode = false;
+  MAT = makeMats();
+  renderer = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  stage.prepend(renderer.domElement);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(40, 1, 0.05, 100);
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.12;
+  controls.minDistance = 0.6; controls.maxDistance = 11; controls.maxPolarAngle = Math.PI*0.53;
+  raycaster = new THREE.Raycaster();
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x7d8a99, 0.85));
+  const d1 = new THREE.DirectionalLight(0xffffff, 0.85); d1.position.set(4,6,-3); scene.add(d1);
+  const d2 = new THREE.DirectionalLight(0xffffff, 0.35); d2.position.set(-4,3,5); scene.add(d2);
+  scene.add(groundShadow());
+
+  const bodyGeo = buildBodyGeometry();
+  groups.ext = buildExterior(bodyGeo);
+  groups.int = buildInterior(bodyGeo);
+  groups.eng = buildEngine(bodyGeo);
+  for(const a of ["ext","int","eng"]){ markerGroups[a]=new THREE.Group(); groups[a].add(markerGroups[a]); scene.add(groups[a]); }
+  applyTheme();
+  new ResizeObserver(resize).observe(stage); resize();
+  $("#loading").remove();
+  (function loop(){ requestAnimationFrame(loop); tick(); controls.update(); renderer.render(scene,camera); })();
+  return true;
+}
+function applyTheme(){ if(renderer) renderer.setClearColor(new THREE.Color(cssVar("--stage")), 1); }
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+function resize(){
+  const w=stage.clientWidth, h=stage.clientHeight; if(!w||!h) return;
+  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+}
+
+function groundShadow(){
+  const c=document.createElement("canvas"); c.width=c.height=256; const g=c.getContext("2d");
+  const grd=g.createRadialGradient(128,128,10,128,128,128); grd.addColorStop(0,"rgba(0,0,0,.38)"); grd.addColorStop(1,"rgba(0,0,0,0)");
+  g.fillStyle=grd; g.fillRect(0,0,256,256);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(6.4,3.2), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c), transparent:true, depthWrite:false}));
+  m.rotation.x=-Math.PI/2; m.position.y=0.002; return m;
+}
+
+let MAT;
+function makeMats(){ return {
+  paint: new THREE.MeshStandardMaterial({color:0x5f7d99, metalness:0.35, roughness:0.42}),
+  glass: new THREE.MeshStandardMaterial({color:0x1b2530, metalness:0.6, roughness:0.15, side:THREE.DoubleSide}),
+  plastic: new THREE.MeshStandardMaterial({color:0x2b3036, roughness:0.75}),
+  tire: new THREE.MeshStandardMaterial({color:0x1e2125, roughness:0.9}),
+  rim: new THREE.MeshStandardMaterial({color:0xb9c1ca, metalness:0.7, roughness:0.3}),
+  head: new THREE.MeshStandardMaterial({color:0xe9f0f7, emissive:0x6d7f93, emissiveIntensity:0.25, roughness:0.2}),
+  tail: new THREE.MeshStandardMaterial({color:0xb3242b, emissive:0x5a0b0f, emissiveIntensity:0.4, roughness:0.3}),
+  seam: new THREE.LineBasicMaterial({color:0x1d2834, transparent:true, opacity:0.55}),
+  seat: new THREE.MeshStandardMaterial({color:0x3a414b, roughness:0.95}),
+  seat2: new THREE.MeshStandardMaterial({color:0x4a525d, roughness:0.95}),
+  trim: new THREE.MeshStandardMaterial({color:0x8d949c, roughness:0.85}),
+  carpet: new THREE.MeshStandardMaterial({color:0x2a2e34, roughness:1}),
+  screen: new THREE.MeshStandardMaterial({color:0x0e1520, emissive:0x1e4d8f, emissiveIntensity:0.45, roughness:0.2}),
+  metal: new THREE.MeshStandardMaterial({color:0x8a939d, metalness:0.6, roughness:0.45}),
+  engine: new THREE.MeshStandardMaterial({color:0x50575f, metalness:0.4, roughness:0.6}),
+  cover: new THREE.MeshStandardMaterial({color:0x23272c, roughness:0.55}),
+  white: new THREE.MeshStandardMaterial({color:0xe6e2d8, roughness:0.5, transparent:true, opacity:0.92}),
+  blue: new THREE.MeshStandardMaterial({color:0x2f6fd0, roughness:0.5}),
+  yellow: new THREE.MeshStandardMaterial({color:0xe0b020, roughness:0.5}),
+  red: new THREE.MeshStandardMaterial({color:0xc0262d, roughness:0.5}),
+  ghost: new THREE.MeshBasicMaterial({color:0x5f7d99, transparent:true, opacity:0.07, depthWrite:false}),
+  ghostLine: new THREE.LineBasicMaterial({color:0x5f7d99, transparent:true, opacity:0.35})
+}; }
+
+function buildBodyGeometry(){
+  const s=new THREE.Shape();
+  s.moveTo(-2.30,0.45); s.lineTo(-1.85,0.40);
+  s.absarc(-1.40,0.38,0.45,Math.PI,0,true);
+  s.lineTo(1.00,0.40);
+  s.absarc(1.45,0.38,0.45,Math.PI,0,true);
+  s.lineTo(2.32,0.42); s.lineTo(2.42,0.62); s.lineTo(2.40,0.92); s.lineTo(2.25,1.00);
+  s.lineTo(1.10,1.08); s.lineTo(0.55,1.62); s.lineTo(-1.80,1.66); s.lineTo(-2.22,1.46);
+  s.lineTo(-2.33,0.95); s.lineTo(-2.30,0.45);
+  const bt=0.06, depth=2*HALF_W-2*bt;
+  const g=new THREE.ExtrudeGeometry(s,{depth, bevelEnabled:true, bevelThickness:bt, bevelSize:0.05, bevelSegments:4, curveSegments:28});
+  g.translate(0,0,-depth/2);
+  const pos=g.attributes.position;
+  for(let i=0;i<pos.count;i++) pos.setZ(i, pos.getZ(i)*taper(pos.getY(i)));
+  g.computeVertexNormals();
+  return g;
+}
+
+function mesh(geo, mat, name, parent, pos, extra){
+  const m=new THREE.Mesh(geo,mat); if(pos) m.position.set(pos[0],pos[1],pos[2]);
+  if(name){ m.userData.part=name; }
+  if(extra) Object.assign(m.userData, extra);
+  parent.add(m); return m;
+}
+function box(w,h,d){ return new THREE.BoxGeometry(w,h,d); }
+
+function sidePoly(pts, side, mat, name, parent){
+  const v2 = pts.map(p=>new THREE.Vector2(p[0],p[1]));
+  const tris = THREE.ShapeUtils.triangulateShape(v2, []);
+  const arr=[]; pts.forEach(p=>arr.push(p[0], p[1], side*(HALF_W*taper(p[1])+0.006)));
+  const g=new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(arr,3));
+  g.setIndex(tris.flat()); g.computeVertexNormals();
+  return mesh(g, mat, name, parent);
+}
+function slopeGlass(a, b, outward, inset, mat, name, parent){
+  const len=Math.hypot(outward[0],outward[1]); const n=[outward[0]/len, outward[1]/len]; const off=0.056;
+  const pt=t=>[a[0]+(b[0]-a[0])*t + n[0]*off, a[1]+(b[1]-a[1])*t + n[1]*off];
+  const p0=pt(0.07), p1=pt(0.93);
+  const z0=HALF_W*taper(p0[1])-inset, z1=HALF_W*taper(p1[1])-inset;
+  const arr=[p0[0],p0[1],-z0, p0[0],p0[1],z0, p1[0],p1[1],z1, p1[0],p1[1],-z1];
+  const g=new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(arr,3));
+  g.setIndex([0,1,2, 0,2,3]); g.computeVertexNormals();
+  return mesh(g, mat, name, parent);
+}
+
+function buildExterior(bodyGeo){
+  const G=new THREE.Group(); const P=pickables.ext;
+  const body=mesh(bodyGeo, MAT.paint, null, G, null, {kind:"body"}); P.push(body);
+  for(const side of [-1,1]){
+    const S = side<0 ? "L" : "P";
+    P.push(sidePoly([[0.96,1.13],[0.05,1.13],[0.05,1.56],[0.52,1.56]], side, MAT.glass, `Okno předních dveří (${S})`, G));
+    P.push(sidePoly([[-0.05,1.13],[-1.05,1.13],[-1.05,1.57],[-0.05,1.57]], side, MAT.glass, `Okno zadních dveří (${S})`, G));
+    P.push(sidePoly([[-1.15,1.13],[-2.02,1.17],[-1.80,1.57],[-1.15,1.57]], side, MAT.glass, `Zadní boční okno (${S})`, G));
+    // kola
+    for(const [x,label] of [[1.45,"přední"],[-1.40,"zadní"]]){
+      const name=`Kolo ${label} (${S})`;
+      const tire=mesh(new THREE.CylinderGeometry(0.35,0.35,0.24,36).rotateX(Math.PI/2), MAT.tire, name, G, [x,0.35,side*0.80]); P.push(tire);
+      P.push(mesh(new THREE.CylinderGeometry(0.22,0.22,0.02,28).rotateX(Math.PI/2), MAT.rim, name, G, [x,0.35,side*0.925]));
+    }
+    // světla, zrcátka, kliky, ližiny, prahy
+    P.push(mesh(box(0.06,0.09,0.42), MAT.head, `Přední světlomet (${S})`, G, [2.43,0.86,side*0.58]));
+    P.push(mesh(box(0.06,0.12,0.30), MAT.tail, `Zadní světlo (${S})`, G, [-2.36,1.06,side*0.70]));
+    P.push(mesh(box(0.20,0.12,0.14), MAT.plastic, `Vnější zpětné zrcátko (${S})`, G, [0.96,1.18,side*1.02]));
+    P.push(mesh(box(0.16,0.035,0.025), MAT.plastic, `Klika předních dveří (${S})`, G, [0.30,1.00,side*0.942]));
+    P.push(mesh(box(0.16,0.035,0.025), MAT.plastic, `Klika zadních dveří (${S})`, G, [-0.80,1.00,side*0.942]));
+    P.push(mesh(box(2.0,0.04,0.05), MAT.plastic, `Střešní ližina (${S})`, G, [-0.62,1.74,side*0.64]));
+    P.push(mesh(box(1.90,0.09,0.03), MAT.plastic, `Práh (${S})`, G, [0.02,0.45,side*0.935]));
+    // spáry dveří
+    const z=side*(HALF_W+0.004);
+    for(const [x,y0] of [[1.05,0.60],[0.0,0.42],[-1.10,0.72]]){
+      G.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,y0,z),new THREE.Vector3(x,1.07,z)]), MAT.seam));
+    }
+  }
+  P.push(slopeGlass([1.10,1.08],[0.55,1.62],[0.54,0.55],0.12, MAT.glass, "Čelní sklo", G));
+  P.push(slopeGlass([-1.80,1.66],[-2.22,1.46],[-0.20,0.42],0.14, MAT.glass, "Zadní sklo", G));
+  P.push(mesh(box(0.04,0.24,0.95), MAT.plastic, "Maska chladiče", G, [2.455,0.74,0]));
+  P.push(mesh(box(0.08,0.12,1.60), MAT.plastic, "Přední nárazník – spodní část", G, [2.42,0.48,0]));
+  P.push(mesh(box(0.08,0.14,1.60), MAT.plastic, "Zadní nárazník – spodní část", G, [-2.33,0.52,0]));
+  // spára kapoty a pátých dveří
+  const hood=[]; for(let i=0;i<=10;i++){ const z=-0.86+i*0.172; hood.push(new THREE.Vector3(1.09,1.135,z)); }
+  G.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(hood), MAT.seam));
+  return G;
+}
+
+function classifyBody(p,n){
+  const side = p.z<0 ? " (L)" : " (P)"; const x=p.x, y=p.y;
+  if(n.y>0.6 && y>1.5) return "Střecha";
+  if(y>1.09){
+    if(n.x>0.45) return "Rám čelního skla";
+    if(n.x<-0.45) return "Páté dveře – horní část";
+    if(x>0.6) return "A-sloupek"+side;
+    if(x>0.05) return "Rám okna předních dveří"+side;
+    if(x>-0.05) return "B-sloupek"+side;
+    if(x>-1.1) return "Rám okna zadních dveří"+side;
+    return "C-sloupek"+side;
+  }
+  if(n.x>0.5) return y<0.72 ? "Přední nárazník" : "Přední maska / kapota – hrana";
+  if(n.x<-0.5) return y<0.78 ? "Zadní nárazník" : "Páté dveře (víko kufru)";
+  if(n.y>0.55) return x>1.07 ? "Kapota" : (x<-2.1 ? "Páté dveře (víko kufru)" : "Linie pod okny"+side);
+  if(n.y<-0.3 && y>0.45) return (x>0 ? "Podběh přední" : "Podběh zadní")+side;
+  if(n.y<-0.6) return "Spodek karoserie";
+  if(x>2.2) return "Přední nárazník – roh"+side;
+  if(x>1.05) return "Přední blatník"+side;
+  if(y<0.52 && x>-0.95 && x<1.0) return "Práh"+side;
+  if(x>0.0) return "Přední dveře"+side;
+  if(x>-1.1) return "Zadní dveře"+side;
+  if(x>-2.2) return "Zadní blatník"+side;
+  return "Zadní nárazník – roh"+side;
+}
+
+function ghost(bodyGeo, G){
+  const g=new THREE.Mesh(bodyGeo, MAT.ghost); g.renderOrder=-1; G.add(g);
+  G.add(new THREE.LineSegments(new THREE.EdgesGeometry(bodyGeo, 35), MAT.ghostLine));
+}
+
+function buildInterior(bodyGeo){
+  const G=new THREE.Group(); const P=pickables.int; ghost(bodyGeo,G);
+  P.push(mesh(box(3.3,0.04,1.70), MAT.carpet, "Podlaha / koberec", G, [-0.45,0.43,0]));
+  P.push(mesh(box(0.40,0.30,1.70), MAT.trim, "Palubní deska", G, [0.95,0.98,0]));
+  P.push(mesh(box(0.10,0.14,0.36), MAT.cover, "Přístrojový štít", G, [0.78,1.15,-0.40]));
+  const scr=mesh(box(0.03,0.20,0.34), MAT.screen, "Displej infotainmentu", G, [0.76,1.20,0.02]); scr.rotation.z=0.18; P.push(scr);
+  const wheel=mesh(new THREE.TorusGeometry(0.18,0.025,10,36).rotateY(Math.PI/2), MAT.cover, "Volant", G, [0.55,1.04,-0.40]); wheel.rotation.z=0.38; P.push(wheel);
+  const hub=mesh(new THREE.CylinderGeometry(0.06,0.06,0.05,20).rotateZ(Math.PI/2), MAT.cover, "Volant", G, [0.56,1.04,-0.40]); hub.rotation.z=0.38+Math.PI/2; P.push(hub);
+  P.push(mesh(box(1.0,0.28,0.24), MAT.trim, "Středová konzole", G, [0.33,0.59,0]));
+  P.push(mesh(box(0.06,0.08,0.05), MAT.cover, "Volič převodovky", G, [0.55,0.77,0]));
+  function seat(name,x,z,w,y){
+    const c=mesh(box(0.50,0.12,w), MAT.seat, name+" – sedák", G, [x,y,z]); P.push(c);
+    const b=mesh(box(0.12,0.62,w), MAT.seat2, name+" – opěradlo", G, [x-0.29,y+0.33,z]); b.rotation.z=0.14; P.push(b);
+    P.push(mesh(box(0.10,0.16,w*0.55), MAT.seat, name+" – opěrka hlavy", G, [x-0.38,y+0.74,z]));
+  }
+  seat("Sedadlo řidiče",0.05,-0.42,0.52,0.62);
+  seat("Sedadlo spolujezdce",0.05,0.42,0.52,0.62);
+  seat("Zadní sedadlo levé",-0.92,-0.52,0.48,0.64);
+  seat("Zadní sedadlo prostřední",-0.92,0,0.50,0.64);
+  seat("Zadní sedadlo pravé",-0.92,0.52,0.48,0.64);
+  for(const side of [-1,1]){
+    const S=side<0?"L":"P";
+    P.push(mesh(box(0.95,0.55,0.05), MAT.trim, `Výplň předních dveří (${S})`, G, [0.52,0.80,side*0.86]));
+    P.push(mesh(box(0.95,0.55,0.05), MAT.trim, `Výplň zadních dveří (${S})`, G, [-0.58,0.80,side*0.86]));
+    P.push(mesh(box(0.85,0.40,0.04), MAT.trim, `Zavazadlový prostor – boční čalounění (${S})`, G, [-1.80,0.84,side*0.80]));
+  }
+  P.push(mesh(box(0.85,0.04,1.50), MAT.carpet, "Zavazadlový prostor – podlaha", G, [-1.80,0.62,0]));
+  return G;
+}
+
+function buildEngine(bodyGeo){
+  const G=new THREE.Group(); const P=pickables.eng; ghost(bodyGeo,G);
+  P.push(mesh(box(1.25,0.03,1.60), MAT.cover, "Motorový prostor – dno", G, [1.70,0.50,0]));
+  P.push(mesh(box(0.04,0.55,1.60), MAT.engine, "Čelní stěna (přepážka)", G, [1.07,0.78,0]));
+  for(const side of [-1,1]){
+    const S=side<0?"L":"P";
+    P.push(mesh(box(1.20,0.50,0.04), MAT.engine, `Vnitřní blatník (${S})`, G, [1.70,0.78,side*0.82]));
+    P.push(mesh(new THREE.CylinderGeometry(0.10,0.10,0.25,24), MAT.metal, `Horní uložení tlumiče (${S})`, G, [1.45,0.92,side*0.64]));
+  }
+  P.push(mesh(box(0.06,0.42,1.25), MAT.metal, "Chladič", G, [2.25,0.72,0]));
+  P.push(mesh(box(0.08,0.06,1.40), MAT.cover, "Horní příčka / zámek kapoty", G, [2.28,0.98,0]));
+  P.push(mesh(box(0.55,0.42,0.75), MAT.engine, "Motor – blok", G, [1.66,0.78,0.02]));
+  P.push(mesh(box(0.50,0.06,0.60), MAT.cover, "Kryt motoru", G, [1.66,1.02,0.02]));
+  P.push(mesh(box(0.26,0.20,0.18), MAT.cover, "Akumulátor 12 V", G, [1.32,0.88,-0.55]));
+  P.push(mesh(new THREE.CylinderGeometry(0.018,0.018,0.03,12), MAT.red, "Akumulátor 12 V", G, [1.26,1.00,-0.50]));
+  P.push(mesh(box(0.14,0.14,0.10), MAT.white, "Nádržka chladicí kapaliny", G, [2.04,0.95,-0.60]));
+  P.push(mesh(new THREE.CylinderGeometry(0.035,0.035,0.03,16), MAT.cover, "Nádržka chladicí kapaliny", G, [2.04,1.035,-0.60]));
+  P.push(mesh(box(0.16,0.16,0.12), MAT.white, "Nádržka ostřikovačů", G, [2.08,0.90,0.62]));
+  P.push(mesh(new THREE.CylinderGeometry(0.035,0.035,0.03,16), MAT.blue, "Nádržka ostřikovačů", G, [2.08,0.995,0.62]));
+  P.push(mesh(box(0.10,0.08,0.10), MAT.white, "Nádržka brzdové kapaliny", G, [1.18,1.00,-0.32]));
+  P.push(mesh(new THREE.CylinderGeometry(0.03,0.03,0.025,16), MAT.yellow, "Nádržka brzdové kapaliny", G, [1.18,1.05,-0.32]));
+  P.push(mesh(box(0.30,0.16,0.26), MAT.cover, "Vzduchový filtr / sání", G, [1.95,0.95,0.40]));
+  P.push(mesh(box(0.20,0.10,0.14), MAT.cover, "Pojistková skříň", G, [1.18,0.95,0.55]));
+  return G;
+}
+
+/* ---------- Pohledy kamery ---------- */
+const VIEWS = {
+  ext:[
+    ["Celkový pohled",[4.3,2.4,-4.3],[0,0.8,0]],
+    ["Levé přední dveře",[0.7,1.15,-3.3],[0.5,0.8,-0.9]],
+    ["Levé zadní dveře",[-0.6,1.15,-3.3],[-0.55,0.8,-0.9]],
+    ["Levý bok",[0,1.3,-6.2],[0,0.85,0]],
+    ["Pravé přední dveře",[0.7,1.15,3.3],[0.5,0.8,0.9]],
+    ["Pravé zadní dveře",[-0.6,1.15,3.3],[-0.55,0.8,0.9]],
+    ["Pravý bok",[0,1.3,6.2],[0,0.85,0]],
+    ["Přední část",[5.8,1.6,0.01],[1.6,0.8,0]],
+    ["Kapota a čelní sklo",[4.2,3.1,0.01],[1.4,1.0,0]],
+    ["Zadní část",[-5.8,1.8,0.01],[-1.6,0.9,0]],
+    ["Střecha",[-0.4,6.2,-0.8],[-0.4,1.2,0]]
+  ],
+  int:[
+    ["Celkový pohled",[-3.0,3.3,-2.3],[-0.3,0.7,0]],
+    ["Místo řidiče",[-0.6,1.95,-0.15],[0.75,1.0,-0.4]],
+    ["Palubní deska",[-0.1,1.55,0.3],[0.9,1.05,0]],
+    ["Zadní sedadla",[0.4,2.7,1.3],[-0.9,0.65,0.2]],
+    ["Zavazadlový prostor",[-3.7,1.9,0.01],[-1.7,0.7,0]],
+    ["Shora",[-0.4,5.2,0.01],[-0.4,0.6,0]]
+  ],
+  eng:[
+    ["Celkový pohled",[3.7,2.7,-2.1],[1.65,0.85,0]],
+    ["Shora",[1.66,3.9,0.01],[1.65,0.8,0]],
+    ["Levá strana",[1.7,2.1,-2.5],[1.65,0.85,0]],
+    ["Pravá strana",[1.7,2.1,2.5],[1.65,0.85,0]],
+    ["Zepředu",[4.4,1.6,0.01],[1.65,0.85,0]]
+  ]
+};
+const lastCam = {};
+let tween=null;
+function fitView(p,t){ // na úzkém displeji odstoupit dál, aby bylo vidět celé auto
+  const a=camera.aspect||1; const f=a<1?Math.min(2.2,1.1/a):1; if(f<=1) return p;
+  return [0,1,2].map(i=>t[i]+(p[i]-t[i])*f);
+}
+function flyTo(p,t,instant){
+  const from={p:camera.position.clone(), t:controls.target.clone()};
+  const to={p:new THREE.Vector3(...p), t:new THREE.Vector3(...t)};
+  if(instant || matchMedia("(prefers-reduced-motion: reduce)").matches){ camera.position.copy(to.p); controls.target.copy(to.t); tween=null; return; }
+  tween={from,to,start:performance.now(),dur:480};
+}
+function tick(){
+  if(!tween) return;
+  let k=Math.min(1,(performance.now()-tween.start)/tween.dur); const e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+  camera.position.lerpVectors(tween.from.p, tween.to.p, e); controls.target.lerpVectors(tween.from.t, tween.to.t, e);
+  if(k>=1) tween=null;
+}
+function fillViews(area){
+  const sel=$("#viewSel"); sel.innerHTML='<option value="" disabled selected>Pohled: zvolte díl…</option>'+
+    (VIEWS[area]||[]).map((v,i)=>`<option value="${i}">${esc(v[0])}</option>`).join("");
+}
+$("#viewSel").addEventListener("change", e=>{ const v=VIEWS[currentArea][+e.target.value]; if(v) flyTo(fitView(v[1],v[2]),v[2]); });
+
+/* ---------- Záložky ---------- */
+function setArea(area, opts){
+  opts=opts||{};
+  if(started && camera && currentArea!=="dyn") lastCam[currentArea]={p:camera.position.toArray(), t:controls.target.toArray()};
+  currentArea=area;
+  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.area===area)));
+  const is3d = area!=="dyn";
+  $("#stage").hidden=!is3d; $("#dyn").hidden=is3d; $("#viewWrap").style.visibility = is3d?"visible":"hidden";
+  if(is3d && renderer){
+    for(const a of ["ext","int","eng"]) groups[a].visible = a===area;
+    resize();
+    const c = opts.cam || lastCam[area] || {p:fitView(VIEWS[area][0][1],VIEWS[area][0][2]), t:VIEWS[area][0][2]};
+    flyTo(c.p, c.t, !opts.cam);
+  }
+  fillViews(area);
+  if(!is3d) renderChecks();
+}
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>setArea(b.dataset.area)));
+
+/* ---------- Značky vad ---------- */
+function markerTexture(n, sev, pending){
+  const c=document.createElement("canvas"); c.width=c.height=128; const g=c.getContext("2d");
+  g.beginPath(); g.arc(64,64,54,0,Math.PI*2); g.fillStyle=pending?"#1d5fd0":SEV_HEX[sev]||"#555"; g.fill();
+  g.lineWidth=10; g.strokeStyle="#ffffff"; g.stroke();
+  g.fillStyle="#fff"; g.font="700 58px 'IBM Plex Mono', monospace"; g.textAlign="center"; g.textBaseline="middle";
+  g.fillText(pending?"+":String(n),64,68);
+  const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; return t;
+}
+function makeSprite(d, pending){
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:markerTexture(d.n,d.sev,pending), depthTest:true}));
+  const sz = d.area==="ext"?0.13:0.085; s.scale.set(sz,sz,1); s.userData.size=sz;
+  const p=new THREE.Vector3(...d.point).addScaledVector(new THREE.Vector3(...d.normal), sz*0.45);
+  s.position.copy(p); s.renderOrder=5; s.userData.defectId=d.id;
+  return s;
+}
+function syncMarkers(){
+  if(!renderer) return;
+  for(const [id,s] of markerSprites){ s.parent&&s.parent.remove(s); s.material.map.dispose(); s.material.dispose(); }
+  markerSprites.clear();
+  for(const d of state.defects){ if(d.area==="dyn"||!d.point) continue; const s=makeSprite(d); markerGroups[d.area].add(s); markerSprites.set(d.id,s); }
+}
+
+/* ---------- Dlouhý stisk ---------- */
+const LONG_MS=550, MOVE_TOL=10;
+let press=null, pointers=new Set(), pendingSprite=null;
+function ndc(e){ const r=renderer.domElement.getBoundingClientRect(); return new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1); }
+function hitAt(e){
+  raycaster.setFromCamera(ndc(e), camera);
+  const hits=raycaster.intersectObjects(pickables[currentArea], false);
+  return hits[0]||null;
+}
+function startPress(e){
+  pointers.add(e.pointerId);
+  if(pointers.size>1){ cancelPress(); return; }
+  const r=stage.getBoundingClientRect(); const ring=$("#press");
+  ring.style.left=(e.clientX-r.left)+"px"; ring.style.top=(e.clientY-r.top)+"px";
+  ring.classList.remove("on"); void ring.offsetWidth; ring.classList.add("on");
+  press={x:e.clientX,y:e.clientY,t:performance.now(),moved:false, timer:setTimeout(()=>firePress(e),LONG_MS)};
+}
+function cancelPress(){ if(press){ clearTimeout(press.timer); press=null; } $("#press").classList.remove("on"); }
+function firePress(e){
+  $("#press").classList.remove("on"); const pr=press; press=null; if(!pr) return;
+  const hit=hitAt({clientX:pr.x, clientY:pr.y});
+  if(!hit){ toast("Tady není žádný díl. Podržte prst přímo na voze."); return; }
+  try{ navigator.vibrate && navigator.vibrate(25); }catch(_){}
+  const obj=hit.object;
+  const n=hit.face ? hit.face.normal.clone().transformDirection(obj.matrixWorld) : new THREE.Vector3(0,1,0);
+  if(n.dot(raycaster.ray.direction)>0) n.negate();
+  const part = obj.userData.kind==="body" ? classifyBody(hit.point, n) : obj.userData.part;
+  const draft={area:currentArea, part, point:hit.point.toArray().map(v=>+v.toFixed(3)), normal:n.toArray().map(v=>+v.toFixed(3)),
+    cam:{p:camera.position.toArray().map(v=>+v.toFixed(3)), t:controls.target.toArray().map(v=>+v.toFixed(3))}};
+  pendingSprite=makeSprite({...draft,id:"pending",n:0,sev:"B"}, true); markerGroups[currentArea].add(pendingSprite);
+  openDefectForm(draft);
+}
+function clearPending(){ if(pendingSprite){ pendingSprite.parent&&pendingSprite.parent.remove(pendingSprite); pendingSprite=null; } }
+
+function bindPointer(){
+  const el=renderer.domElement;
+  el.addEventListener("pointerdown", e=>{ if(e.button>0) return; startPress(e); });
+  el.addEventListener("pointermove", e=>{ if(press && Math.hypot(e.clientX-press.x,e.clientY-press.y)>MOVE_TOL){ press.moved=true; cancelPress(); } });
+  const up=e=>{
+    pointers.delete(e.pointerId);
+    if(press && performance.now()-press.t<300){ // krátké klepnutí: otevřít značku
+      const pr=press; cancelPress();
+      raycaster.setFromCamera(ndc(e), camera);
+      const hit=raycaster.intersectObjects(markerGroups[currentArea].children.filter(s=>s!==pendingSprite), false)[0];
+      if(hit){ const d=state.defects.find(x=>x.id===hit.object.userData.defectId); if(d) openDetail(d); }
+      return;
+    }
+    cancelPress();
+  };
+  el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up); el.addEventListener("pointerleave", e=>{ pointers.delete(e.pointerId); cancelPress(); });
+  el.addEventListener("contextmenu", e=>e.preventDefault());
+}
+
+/* ---------- Formulář vady ---------- */
+let photoCb=null;
+$("#photoIn").addEventListener("change", async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f||!photoCb) return;
+  try{ photoCb(await compressImage(f, 1000, 0.72)); }catch(_){ toast("Fotku se nepodařilo načíst."); }
+});
+function compressImage(file, max, q){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{ const k=Math.min(1,max/Math.max(img.width,img.height)); const c=document.createElement("canvas");
+      c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url); res({data:c.toDataURL("image/jpeg",q), w:c.width, h:c.height}); };
+    img.onerror=()=>{ URL.revokeObjectURL(url); rej(); }; img.src=url;
+  });
+}
+
+function openDefectForm(draft){
+  let type=null, sev="B", photo=null;
+  const sh=openSheet(`
+    <h3>Nová vada</h3>
+    <div class="loc"><span class="pill">${esc(AREAS[draft.area])}</span>${draft.point?"<span>místo označeno na modelu</span>":""}</div>
+    <div class="field"><label for="fPart">Díl / místo</label><input type="text" id="fPart" value="${esc(draft.part)}" autocomplete="off"></div>
+    <div class="field"><span class="lbl">Typ vady</span><div class="types" id="fTypes">
+      ${TYPES.map(t=>`<button type="button" class="chip" data-t="${t.id}" aria-pressed="false"><b>${esc(t.label)}</b><small>${esc(t.hint)}</small></button>`).join("")}
+    </div></div>
+    <div class="field"><span class="lbl">Závažnost</span><div class="sev" id="fSev">
+      ${Object.entries(SEV).map(([k,s])=>`<button type="button" class="chip" data-s="${k}" aria-pressed="${k===sev}"><b>${esc(s.label)}</b><small>${esc(s.hint)}</small></button>`).join("")}
+    </div></div>
+    <div class="field"><label for="fNote">Poznámka</label><textarea id="fNote" placeholder="např. délka 3 cm, viditelné z 1 m"></textarea></div>
+    <div class="field"><span class="lbl">Foto (nepovinné)</span><div class="photo" id="fPhoto"><button type="button" class="btn small" id="fPhotoBtn">Vyfotit / přiložit</button></div></div>
+    <div class="err" id="fErr"></div>
+    <div class="actions"><button type="button" class="btn ghost" id="fCancel">Zrušit</button><button type="button" class="btn primary" id="fSave">Uložit vadu</button></div>
+  `, clearPending);
+  sh.querySelector("#fTypes").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; type=b.dataset.t;
+    sh.querySelectorAll("#fTypes .chip").forEach(c=>c.setAttribute("aria-pressed", String(c===b))); sh.querySelector("#fErr").textContent=""; });
+  sh.querySelector("#fSev").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; sev=b.dataset.s;
+    sh.querySelectorAll("#fSev .chip").forEach(c=>c.setAttribute("aria-pressed", String(c===b))); });
+  const renderPhoto=()=>{ const w=sh.querySelector("#fPhoto"); w.innerHTML = (photo?`<img src="${photo.data}" alt="Přiložená fotka vady">`:"")+
+    `<button type="button" class="btn small" id="fPhotoBtn">${photo?"Vyměnit foto":"Vyfotit / přiložit"}</button>`+(photo?` <button type="button" class="btn small ghost" id="fPhotoDel">Odebrat</button>`:"");
+    w.querySelector("#fPhotoBtn").onclick=()=>{ photoCb=p=>{photo=p;renderPhoto();}; $("#photoIn").click(); };
+    const del=w.querySelector("#fPhotoDel"); if(del) del.onclick=()=>{photo=null;renderPhoto();}; };
+  renderPhoto();
+  sh.querySelector("#fCancel").onclick=closeSheet;
+  sh.querySelector("#fSave").onclick=()=>{
+    if(!type){ sh.querySelector("#fErr").textContent="Vyberte typ vady."; sh.querySelector("#fTypes").scrollIntoView({block:"center",behavior:"smooth"}); return; }
+    const d={id:"d"+Date.now().toString(36), n:++state.seq, area:draft.area, part:sh.querySelector("#fPart").value.trim()||draft.part,
+      type, sev, note:sh.querySelector("#fNote").value.trim(), point:draft.point||null, normal:draft.normal||null, cam:draft.cam||null,
+      time:new Date().toISOString(), photo:photo?photo.data:null, photoW:photo?photo.w:0, photoH:photo?photo.h:0};
+    state.defects.push(d); if(draft.check) state.checks[draft.check]="bad";
+    persist(); closeSheet(); syncMarkers(); refreshCounts(); if(currentArea==="dyn") renderChecks();
+    toast(`Vada č. ${d.n} uložena`);
+  };
+}
+
+/* ---------- Detail a seznam ---------- */
+function defectSummary(d){ return `${TYPE[d.type]?.label||d.type}`; }
+function openDetail(d){
+  const sh=openSheet(`<div class="detail">
+    <h3><span class="num ${d.sev}" style="display:inline-grid;vertical-align:middle;margin-right:8px">${d.n}</span>${esc(defectSummary(d))}${d.example?'<span class="tag">Ukázka</span>':""}</h3>
+    <dl><dt>Oblast</dt><dd>${esc(AREAS[d.area])}</dd><dt>Díl / místo</dt><dd>${esc(d.part)}</dd>
+    <dt>Závažnost</dt><dd>${esc(SEV[d.sev].label)}</dd><dt>Zapsáno</dt><dd>${esc(fmtTime(d.time))}</dd>
+    ${d.note?`<dt>Poznámka</dt><dd>${esc(d.note)}</dd>`:""}</dl>
+    ${d.photo?`<img src="${d.photo}" alt="Fotka vady">`:""}
+    <div class="actions"><button type="button" class="btn danger" id="dDel">Smazat</button><span class="grow"></span>
+    ${d.cam?'<button type="button" class="btn" id="dShow">Ukázat na modelu</button>':""}<button type="button" class="btn primary" id="dClose">Zavřít</button></div></div>`);
+  sh.querySelector("#dClose").onclick=closeSheet;
+  const show=sh.querySelector("#dShow"); if(show) show.onclick=()=>{ closeSheet(); if(currentArea!==d.area) setArea(d.area,{cam:d.cam}); else flyTo(d.cam.p,d.cam.t); };
+  armButton(sh.querySelector("#dDel"), "Opravdu smazat?", ()=>{ state.defects=state.defects.filter(x=>x!==d); persist(); closeSheet(); syncMarkers(); refreshCounts(); if(currentArea==="dyn") renderChecks(); toast(`Vada č. ${d.n} smazána`); });
+}
+function openList(){
+  const ds=[...state.defects].sort((a,b)=>b.n-a.n);
+  const bySev=s=>state.defects.filter(d=>d.sev===s).length;
+  const sh=openSheet(`<h3>Zapsané vady</h3>
+    <div class="sumrow">${["A","B","C"].map(s=>`<span class="pill">${esc(SEV[s].label)}: ${bySev(s)}</span>`).join("")}</div>
+    <div class="list">${ds.length?ds.map(d=>`<button type="button" class="item" data-id="${d.id}"><span class="num ${d.sev}">${d.n}</span>
+      <span style="min-width:0"><div class="t">${esc(defectSummary(d))}${d.example?'<span class="tag">Ukázka</span>':""}</div><div class="s">${esc(AREAS[d.area])} · ${esc(d.part)}</div></span>
+      <span class="meta">${esc(fmtTime(d.time).slice(-5))}${d.photo?"<br>foto":""}</span></button>`).join(""):'<div class="empty">Zatím žádné vady. Podržte prst na modelu.</div>'}</div>
+    <div class="actions" style="margin-top:14px">${ds.length?'<button type="button" class="btn danger" id="lClear">Smazat vše</button>':""}<span class="grow"></span><button type="button" class="btn primary" id="lClose">Zavřít</button></div>`);
+  sh.querySelector("#lClose").onclick=closeSheet;
+  sh.querySelectorAll(".item").forEach(b=>b.onclick=()=>{ const d=state.defects.find(x=>x.id===b.dataset.id); if(d) openDetail(d); });
+  const clr=sh.querySelector("#lClear"); if(clr) armButton(clr,"Opravdu smazat vše?",()=>{ state.defects=[]; state.checks={}; persist(); closeSheet(); syncMarkers(); refreshCounts(); if(currentArea==="dyn") renderChecks(); toast("Všechny vady smazány"); });
+}
+$("#listBtn").addEventListener("click", openList);
+
+function refreshCounts(){
+  for(const a of Object.keys(AREAS)){ const el=document.querySelector(`[data-cnt="${a}"]`); if(el) el.textContent=state.defects.filter(d=>d.area===a).length; }
+  $("#totalCnt").textContent=state.defects.length;
+}
+
+/* ---------- Dynamika ---------- */
+function renderChecks(){
+  $("#checks").innerHTML = DYN_CHECKS.map((c,i)=>{
+    const ds=state.defects.filter(d=>d.area==="dyn" && d.part===c);
+    const st = ds.length ? "bad" : state.checks[c]==="ok" ? "ok" : "";
+    const label = ds.length ? `${ds.length} ${ds.length===1?"vada":ds.length<5?"vady":"vad"}` : st==="ok" ? "OK" : "nezkontrolováno";
+    return `<div class="check"><div class="name">${esc(c)}</div><div class="btns">
+      <button type="button" class="btn small" data-ok="${i}" ${ds.length?"disabled":""}>OK</button>
+      <button type="button" class="btn small primary" data-bad="${i}">+ Vada</button></div>
+      <div class="state ${st}">${label}</div>
+      ${ds.length?`<ul>${ds.map(d=>`<li><span class="num ${d.sev}" style="width:22px;height:22px;font-size:11px">${d.n}</span>${esc(defectSummary(d))}${d.note?" – "+esc(d.note):""}</li>`).join("")}</ul>`:""}</div>`;
+  }).join("");
+}
+$("#checks").addEventListener("click", e=>{
+  const ok=e.target.closest("[data-ok]"), bad=e.target.closest("[data-bad]");
+  if(ok){ const c=DYN_CHECKS[+ok.dataset.ok]; state.checks[c] = state.checks[c]==="ok" ? undefined : "ok"; persist(); renderChecks(); }
+  if(bad){ const c=DYN_CHECKS[+bad.dataset.bad]; openDefectForm({area:"dyn", part:c, check:c}); }
+  const li=e.target.closest("li"); if(li){ /* klepnutí na vadu v seznamu */ }
+});
+
+/* ---------- Údaje o voze ---------- */
+function refreshVin(){ $("#vinVal").textContent = state.vin || "nevyplněno"; }
+$("#vehBtn").addEventListener("click", ()=>{
+  const sh=openSheet(`<h3>Vůz a operátor</h3><p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Údaje se propíšou do každého řádku v Excelu.</p>
+    <div class="field"><label for="vVin">VIN / číslo vozu</label><input type="text" id="vVin" value="${esc(state.vin)}" autocomplete="off" autocapitalize="characters" placeholder="např. TMAJ381AAPJ123456"></div>
+    <div class="field"><label for="vOp">Operátor</label><input type="text" id="vOp" value="${esc(state.operator)}" autocomplete="name" placeholder="jméno nebo osobní číslo"></div>
+    <div class="actions"><button type="button" class="btn ghost" id="vCancel">Zrušit</button><button type="button" class="btn primary" id="vSave">Uložit</button></div>`);
+  sh.querySelector("#vCancel").onclick=closeSheet;
+  sh.querySelector("#vSave").onclick=()=>{ state.vin=sh.querySelector("#vVin").value.trim().toUpperCase(); state.operator=sh.querySelector("#vOp").value.trim(); persist(); refreshVin(); closeSheet(); };
+});
+
+/* ---------- Export do Excelu ---------- */
+let sketchR=null;
+function renderSketch(d){
+  const W=640,H=448;
+  if(!sketchR){ sketchR=new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true}); sketchR.setPixelRatio(1); sketchR.setSize(W,H); sketchR.outputEncoding=THREE.sRGBEncoding; sketchR.setClearColor(0xf2f4f7,1); }
+  const cam=new THREE.PerspectiveCamera(40,W/H,0.05,100);
+  cam.position.set(...d.cam.p); cam.lookAt(new THREE.Vector3(...d.cam.t));
+  const vis={}; for(const a of ["ext","int","eng"]){ vis[a]=groups[a].visible; groups[a].visible = a===d.area; }
+  const saved=[]; for(const s of markerSprites.values()){ saved.push([s,s.visible,s.scale.x]); s.visible = s.userData.defectId===d.id; if(s.visible) s.scale.setScalar(s.userData.size*1.6); }
+  if(pendingSprite) pendingSprite.visible=false;
+  sketchR.render(scene,cam);
+  const url=sketchR.domElement.toDataURL("image/jpeg",0.85);
+  for(const a in vis) groups[a].visible=vis[a];
+  for(const [s,v,sc] of saved){ s.visible=v; s.scale.set(sc,sc,1); }
+  if(pendingSprite) pendingSprite.visible=true;
+  return url;
+}
+let downloads=null;
+if(window.claude && typeof window.claude.use==="function"){ window.claude.use("downloads").then(d=>downloads=d).catch(()=>{}); }
+async function saveFile(name, blob){
+  if(downloads){
+    try{ await downloads.save({filename:name, data:blob}); toast("Excel uložen"); }
+    catch(e){ toast(e&&e.code==="declined" ? "Stažení zrušeno" : "Stažení se nepovedlo ("+((e&&e.code)||"chyba")+")"); }
+    return;
+  }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },3000); toast("Excel stažen");
+}
+async function exportXlsx(){
+  if(!state.defects.length){ toast("Není co exportovat, zatím žádné vady."); return; }
+  if(!window.ExcelJS){ toast("Knihovna pro Excel se nenačetla. Obnovte stránku."); return; }
+  $("#busy").hidden=false; await new Promise(r=>setTimeout(r,30));
+  try{
+    const wb=new ExcelJS.Workbook(); wb.creator="Záznam vad vozu"; wb.created=new Date();
+    const ws=wb.addWorksheet("Vady",{views:[{state:"frozen",ySplit:1}]});
+    ws.columns=[
+      {header:"Č.",key:"n",width:5},{header:"Datum a čas",key:"t",width:17},{header:"VIN / číslo vozu",key:"vin",width:20},
+      {header:"Operátor",key:"op",width:14},{header:"Oblast",key:"area",width:17},{header:"Díl / místo",key:"part",width:30},
+      {header:"Typ vady",key:"type",width:24},{header:"Závažnost",key:"sev",width:13},{header:"Poznámka",key:"note",width:32},
+      {header:"Náčrt místa",key:"sk",width:47},{header:"Foto",key:"ph",width:34}
+    ];
+    const hr=ws.getRow(1); hr.height=22; hr.font={bold:true,color:{argb:"FFFFFFFF"}}; hr.alignment={vertical:"middle"};
+    hr.eachCell(c=>{ c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF1D5FD0"}}; });
+    const sevFill={A:"FFF8D7D7",B:"FFFCE8C8",C:"FFDCE7F4"};
+    const ds=[...state.defects].sort((a,b)=>a.n-b.n);
+    ds.forEach((d,i)=>{
+      const row=ws.addRow({n:d.n,t:fmtTime(d.time),vin:state.vin||"",op:state.operator||"",area:AREAS[d.area],part:d.part,
+        type:TYPE[d.type]?.label||d.type,sev:SEV[d.sev].label,note:(d.example?"[Ukázka] ":"")+(d.note||"")});
+      row.alignment={vertical:"top",wrapText:true};
+      row.getCell("sev").fill={type:"pattern",pattern:"solid",fgColor:{argb:sevFill[d.sev]}};
+      const r=i+1; let h=0;
+      if(d.cam && d.point){
+        const id=wb.addImage({base64:renderSketch(d),extension:"jpeg"});
+        ws.addImage(id,{tl:{col:9.1,row:r+0.05},ext:{width:320,height:224},editAs:"oneCell"}); h=224;
+      }
+      if(d.photo){
+        const k=Math.min(230/(d.photoW||4), 224/(d.photoH||3));
+        const id=wb.addImage({base64:d.photo,extension:"jpeg"});
+        ws.addImage(id,{tl:{col:10.1,row:r+0.05},ext:{width:Math.round((d.photoW||4)*k),height:Math.round((d.photoH||3)*k)},editAs:"oneCell"}); h=Math.max(h,224);
+      }
+      row.height = h ? (h+10)*0.75 : 30;
+    });
+    const sm=wb.addWorksheet("Souhrn");
+    sm.columns=[{width:30},{width:22}];
+    const add=(a,b,bold)=>{ const r=sm.addRow([a,b]); if(bold) r.font={bold:true}; };
+    add("Záznam vad vozu",null,true); add("VIN / číslo vozu",state.vin||"nevyplněno"); add("Operátor",state.operator||"nevyplněno");
+    add("Export",fmtTime(new Date().toISOString())); add("Celkem vad",ds.length); sm.addRow([]);
+    add("Podle závažnosti",null,true); for(const s of ["A","B","C"]) add(SEV[s].label, ds.filter(d=>d.sev===s).length);
+    sm.addRow([]); add("Podle oblasti",null,true); for(const a of Object.keys(AREAS)) add(AREAS[a], ds.filter(d=>d.area===a).length);
+    sm.addRow([]); add("Podle typu",null,true); for(const t of TYPES) add(t.label, ds.filter(d=>d.type===t.id).length);
+    sm.addRow([]); add("Dynamika – kontroly",null,true); for(const c of DYN_CHECKS){ const n=ds.filter(d=>d.area==="dyn"&&d.part===c).length; add(c, n?`${n}× vada`:state.checks[c]==="ok"?"OK":"nezkontrolováno"); }
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const day=new Date().toISOString().slice(0,10);
+    const vin=(state.vin||"bez-VIN").replace(/[^A-Za-z0-9_-]/g,"");
+    $("#busy").hidden=true;
+    await saveFile(`vady_${vin}_${day}.xlsx`, blob);
+  }catch(err){ console.error(err); toast("Export se nepovedl: "+(err&&err.message||err)); }
+  finally{ $("#busy").hidden=true; }
+}
+$("#exportBtn").addEventListener("click", exportXlsx);
+
+/* ---------- Start ---------- */
+refreshVin(); refreshCounts(); fillViews("ext");
+if(initThree()){ bindPointer(); syncMarkers(); setArea("ext"); started=true; }
+window.__app={state, exportXlsx, renderSketch, setArea, classifyBody};
+})();
+</script>
+
+</body></html>
